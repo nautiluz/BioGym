@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>BioGym | ECOSYSTEM v18.0</title>
+    <title>BioGym | ECOSYSTEM v19.0</title>
     <link rel="stylesheet" href="style.css">
     <link
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;600;900&family=Inter:wght@400;700;800&display=swap"
@@ -13,7 +13,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Firebase v9 Compat SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore-compat.js"></script>
 </head>
 
 <body class="light-mode">
@@ -62,6 +64,27 @@
             <h2>Centro de Control Global</h2>
             <p style="color:var(--text-sec); font-size:0.9rem;">Visor de usuarios registrados y gestión de matrices de
                 seguridad.</p>
+
+            <!-- FIREBASE CONFIG PANEL -->
+            <div
+                style="margin:20px 0; padding:20px; background:rgba(66,133,244,0.07); border-radius:16px; border:1px dashed var(--primary);">
+                <div style="font-weight:800; font-size:0.9rem; margin-bottom:10px;"><i class="fas fa-fire"
+                        style="color:#FF9800"></i> Configuración Firebase (Cloud DB)</div>
+                <p id="fb-status" style="font-size:0.8rem; color:var(--text-sec); margin-bottom:12px;">Sin configurar —
+                    los datos solo se guardan localmente.</p>
+                <textarea id="fb-config-input" placeholder='Pega aquí el objeto firebaseConfig de tu consola Firebase:
+{
+  &quot;apiKey&quot;: "AIza...",
+  &quot;authDomain&quot;: "tu-proyecto.firebaseapp.com",
+  &quot;projectId&quot;: "tu-proyecto",
+  &quot;storageBucket&quot;: "...",
+  &quot;messagingSenderId&quot;: "...",
+  &quot;appId&quot;: "..."
+}' style="height:150px; font-family:monospace; font-size:0.75rem; width:100%;"></textarea>
+                <button class="g-btn-main" style="margin-top:5px;" onclick="saveFirebaseConfig()"><i
+                        class="fas fa-cloud-upload-alt"></i> GUARDAR Y CONECTAR A FIRESTORE</button>
+            </div>
+
             <table
                 style="width:100%; text-align:left; border-collapse:collapse; background:white; border-radius:12px; overflow:hidden; box-shadow:var(--shadow); margin-top:20px;">
                 <thead style="background:var(--primary); color:white;">
@@ -83,7 +106,7 @@
     <div class="app-wrap" id="main-app" style="display:none;">
         <header class="g-header">
             <div class="g-header-left">
-                <div class="g-logo">BioGym <span class="v-pill">18.0</span></div>
+                <div class="g-logo">BioGym <span class="v-pill">19.0</span></div>
                 <div id="sync-label" class="sync-status">Auto-Sync On</div>
             </div>
             <div class="header-tools">

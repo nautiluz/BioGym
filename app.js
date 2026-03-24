@@ -9,6 +9,57 @@ window.onerror = function (msg, url, line) {
 
 const WORDS = ["acero", "bosque", "cielo", "delta", "esfuerzo", "fuego", "gigante", "hierro", "impulso", "juego", "kilo", "luna", "mente", "nube", "oro", "plano", "quantum", "roca", "sol", "tiempo", "universo", "valor", "web", "xenon", "yunque", "zen", "alma", "brote", "cima", "diamante", "eco", "faro"];
 
+// --- FIREBASE CONFIG (Proyecto BioGym: biogym-211d5) ---
+const BIOGYM_FIREBASE_CONFIG = {
+    apiKey: "AIzaSyDPx_bYGHTyyXfJvWAPTJYzOWP_roSQK5I",
+    authDomain: "biogym-211d5.firebaseapp.com",
+    projectId: "biogym-211d5",
+    storageBucket: "biogym-211d5.firebasestorage.app",
+    messagingSenderId: "237949737712",
+    appId: "1:237949737712:web:c4bd1330ae1c60d7c50035",
+    measurementId: "G-K1ND0NNGCR"
+};
+
+function initFirebase() {
+    try {
+        if (!firebase.apps.length) { firebase.initializeApp(BIOGYM_FIREBASE_CONFIG); }
+        db = firebase.firestore();
+        console.info('BioGym v19.0: Firebase Firestore activo — biogym-211d5');
+        const statusEl = document.getElementById('fb-status');
+        if (statusEl) statusEl.innerHTML = '✅ <strong>Firestore Conectado</strong> — biogym-211d5. Sincronización en la nube activa para todos los usuarios.';
+    } catch (e) { console.warn('Firebase init error:', e); }
+}
+
+function saveFirebaseConfig() {
+    const raw = document.getElementById('fb-config-input').value.trim();
+    try {
+        const cfg = JSON.parse(raw);
+        localStorage.setItem('biogym_firebase_config', JSON.stringify(cfg));
+        initFirebase();
+        alert('✅ Firebase configurado correctamente. Los datos ahora se guardan en la nube.');
+    } catch (e) {
+        alert('❌ El texto ingresado no es un JSON válido. Verifica que pegaste el objeto completo de Firebase.');
+    }
+}
+
+async function cloudSync(email, data) {
+    if (!db || !email) return;
+    try {
+        await db.collection('biogym_users').doc(email.replace('@', '_')).set(data, { merge: true });
+        const label = document.getElementById('sync-label');
+        if (label) { label.innerText = '☁️ Guardado en Nube'; setTimeout(() => { label.innerText = 'Auto-Sync On'; }, 3000); }
+    } catch (e) { console.warn('Cloud sync error:', e); }
+}
+
+async function cloudLoad(email) {
+    if (!db || !email) return null;
+    try {
+        const snap = await db.collection('biogym_users').doc(email.replace('@', '_')).get();
+        if (snap.exists) return snap.data();
+    } catch (e) { console.warn('Cloud load error:', e); }
+    return null;
+}
+
 function generateSecurityMatrix() {
     let phrase = [];
     for (let i = 0; i < 12; i++) phrase.push(WORDS[Math.floor(Math.random() * WORDS.length)]);
@@ -67,8 +118,11 @@ const MOTIVATIONS = [
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Firebase init
+    initFirebase();
+
     // Check if hard admin wants to auto-login
-    if (activeUserEmail === 'admin') { loadAdminDashboard(); return; }
+    if (activeUserEmail === 'nautiluz') { loadAdminDashboard(); return; }
 
     if (activeUserEmail && engine[activeUserEmail]) {
         loadUserEcosystem(activeUserEmail);
@@ -95,29 +149,34 @@ function appLogin() {
     if (!email || !pass) { alert("Completa todos los campos."); return; }
 
     // Master Admin Login
-    if (email === 'admin' && pass === 'admin') { loadAdminDashboard(); return; }
+    if (email === 'nautiluz' && pass === '$v1vi4nA###') { loadAdminDashboard(); return; }
 
     if (isRegisterMode) {
         if (engine[email]) { alert("El correo ya está registrado."); return; }
         engine[email] = { password: pass, sys: getEmptySysState(), security: generateSecurityMatrix() };
         localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
-
-        // Show Security Matrix on Registration
+        activeUserEmail = email;
+        // Show Security Matrix — user MUST confirm before entering app
         document.getElementById('sec-phrase').innerText = engine[email].security.mnemonic;
-        document.getElementById('sec-tokens').innerHTML = engine[email].security.tokens.map(t => `<li>${t}</li>`).join('');
+        document.getElementById('sec-tokens').innerHTML = engine[email].security.tokens.map(t => `<li style="font-family:monospace; font-size:1rem; letter-spacing:2px;">${t}</li>`).join('');
         document.getElementById('security-modal').style.display = 'flex';
-        activeUserEmail = email; // Stage for Ecosystem boot
 
     } else {
-        if (!engine[email] || engine[email].password !== pass) { alert("Credenciales incorrectas."); return; }
-        engine[email].security.lastLogin = Date.now(); localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
+        if (!engine[email] || engine[email].password !== pass) { alert("Credenciales incorrectas. Verifica tu correo y contraseña."); return; }
+        engine[email].security.lastLogin = Date.now();
+        localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
         loadUserEcosystem(email);
     }
 }
 
 function confirmSecuritySaved() {
     document.getElementById('security-modal').style.display = 'none';
-    loadUserEcosystem(activeUserEmail);
+    if (activeUserEmail && engine[activeUserEmail]) {
+        loadUserEcosystem(activeUserEmail);
+    } else {
+        alert('Error al cargar el ecosistema. Por favor inicia sesión con tu nueva cuenta.');
+        window.location.reload();
+    }
 }
 
 // Biometric Mock/Local WebAuthn wrapper
@@ -210,11 +269,20 @@ function appLogout() {
     window.location.reload();
 }
 
-function loadUserEcosystem(email) {
+async function loadUserEcosystem(email) {
     activeUserEmail = email;
+    localStorage.setItem('biogym_active_user', email);
+
+    // Try pulling from Firestore (cloud wins in case of newer data)
+    const cloudData = await cloudLoad(email);
+    if (cloudData && cloudData.sys) {
+        engine[email] = Object.assign({}, engine[email], cloudData);
+        localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
+    }
+
+    if (!engine[email].sys) engine[email].sys = getEmptySysState();
     if (!engine[email].sys.profile.activity) engine[email].sys.profile.activity = 'none';
     sys = engine[email].sys;
-    localStorage.setItem('biogym_active_user', email);
 
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('admin-app').style.display = 'none';
@@ -761,6 +829,7 @@ function startNotificationEngine() {
 function triggerSync() {
     engine[activeUserEmail].sys = sys;
     localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
+    cloudSync(activeUserEmail, engine[activeUserEmail]);
     const label = document.getElementById('sync-label');
     if (label) label.innerText = "Sincronizado Localmente";
 }
