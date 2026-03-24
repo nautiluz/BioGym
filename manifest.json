@@ -1,0 +1,16 @@
+{
+  "name": "90-Day Bullet Journal",
+  "short_name": "My Journal",
+  "description": "Digitalize your physical 90-day journal.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f9f7f2",
+  "theme_color": "#e8d5cc",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3590/3590656.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

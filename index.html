@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>BioGym | ECOSYSTEM v18.0</title>
+    <link rel="stylesheet" href="style.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;600;900&family=Inter:wght@400;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+
+<body class="light-mode">
+    <!-- AUTHENTICATION MATRIC -->
+    <div id="auth-screen">
+        <div class="g-logo" style="margin-bottom:10px; font-size:2rem;">BioGym <span class="v-pill"
+                style="font-size:0.8rem;">18.0</span></div>
+        <p
+            style="color:var(--text-sec); font-size:0.85rem; font-weight:600; margin-bottom:30px; letter-spacing:1px; text-transform:uppercase;">
+            Sistema de Autenticación Biométrica</p>
+
+        <div class="auth-box">
+            <h1 id="auth-title">INICIAR SESIÓN</h1>
+            <p id="auth-subtitle">Ingresa para aislar tu biometría.</p>
+            <input type="email" id="auth-email" placeholder="Correo electrónico o Admin">
+            <input type="password" id="auth-pass" placeholder="Contraseña">
+
+            <button class="auth-btn" id="btn-login-action" onclick="appLogin()">ENTRAR AL SISTEMA</button>
+            <button class="auth-btn" id="btn-login-bio"
+                style="background:#555; display:flex; gap:10px; justify-content:center; align-items:center; margin-top:10px;"
+                onclick="triggerBiometricLogin()"><i class="fas fa-fingerprint"></i> INGRESO BIOMÉTRICO
+                (WebAuthn)</button>
+
+            <div style="display:flex; justify-content:space-between; margin-top:15px; font-size:0.85rem;">
+                <span class="auth-switch" onclick="toggleAuthMode()"><i class="fas fa-user-plus"></i> Crear
+                    Cuenta</span>
+                <span class="auth-switch" style="color:var(--text-sec)" onclick="openRecoveryFlow()"><i
+                        class="fas fa-key"></i> Recuperar Acceso</span>
+            </div>
+            <div style="margin-top:20px; font-size:0.75rem; color:#aaa;">Nota Migration: Cuentas v15 restauradas autom.
+            </div>
+        </div>
+    </div>
+
+    <!-- ADMIN PANEL -->
+    <div class="app-wrap" id="admin-app" style="display:none; padding:20px;">
+        <header class="g-header">
+            <div class="g-header-left">
+                <div class="g-logo">BioGym <span class="v-pill" style="background:var(--red);">ADMIN</span></div>
+            </div>
+            <div class="header-tools">
+                <button class="g-btn-del" onclick="appLogout()">CERRAR SESIÓN</button>
+            </div>
+        </header>
+        <main class="scroll-area" style="padding-top:20px;">
+            <h2>Centro de Control Global</h2>
+            <p style="color:var(--text-sec); font-size:0.9rem;">Visor de usuarios registrados y gestión de matrices de
+                seguridad.</p>
+            <table
+                style="width:100%; text-align:left; border-collapse:collapse; background:white; border-radius:12px; overflow:hidden; box-shadow:var(--shadow); margin-top:20px;">
+                <thead style="background:var(--primary); color:white;">
+                    <tr>
+                        <th style="padding:15px;">Usuario (Email)</th>
+                        <th style="padding:15px;">Último Acceso</th>
+                        <th style="padding:15px;">Mnemotécnico Activo</th>
+                        <th style="padding:15px;">Acciones de Seguridad</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-user-list">
+                    <!-- Filled by JS -->
+                </tbody>
+            </table>
+        </main>
+    </div>
+
+    <!-- MAIN APP ECOSYSTEM -->
+    <div class="app-wrap" id="main-app" style="display:none;">
+        <header class="g-header">
+            <div class="g-header-left">
+                <div class="g-logo">BioGym <span class="v-pill">18.0</span></div>
+                <div id="sync-label" class="sync-status">Auto-Sync On</div>
+            </div>
+            <div class="header-tools">
+                <button class="icon-btn" onclick="openGuideModal()"><i class="fas fa-question-circle"></i></button>
+                <button class="icon-btn" onclick="openProfilePanel()"><i class="fas fa-user-circle"></i></button>
+            </div>
+        </header>
+        <div class="historical-nav" id="hist-nav-bar">
+            <button onclick="changeDay(-1)"><i class="fas fa-arrow-left"></i></button>
+            <div class="current-day-label" id="active-day-label">HOY</div>
+            <button onclick="changeDay(1)"><i class="fas fa-arrow-right"></i></button>
+        </div>
+        <main id="main-scroll" class="scroll-area">
+            <div id="dash" class="view-content active">
+                <div class="dash-greeting">
+                    <h2 id="dash-greeting">¡Hola!</h2>
+                    <p id="dash-motd">"El progreso no es lineal, es constante."</p>
+                </div>
+                <!-- AI COPILOT -->
+                <section class="tile-card ai-hero">
+                    <div class="ai-box">
+                        <div class="ai-orb"></div>
+                        <div class="ai-text" id="ai-health-tip">Analizando biometría para generar sugerencias...</div>
+                    </div>
+                </section>
+
+                <div id="ai-analysis-result" class="ai-response-box"
+                    style="display:none; margin-bottom:15px; margin-top:0;"></div>
+
+                <!-- EMOCIONAL -->
+                <section class="tile-card">
+                    <div class="tile-label">REACCIÓN EMOCIONAL</div>
+                    <div class="mood-grid-btns" style="grid-template-columns: repeat(5, 1fr);">
+                        <button id="mood-Feliz" class="mood-btn" onclick="logDailyMood('Feliz')"><i
+                                class="fas fa-smile"></i><span style="font-size:0.65rem;">FELIZ</span></button>
+                        <button id="mood-Neutral" class="mood-btn" onclick="logDailyMood('Neutral')"><i
+                                class="fas fa-meh"></i><span style="font-size:0.65rem;">NEUTRAL</span></button>
+                        <button id="mood-Ansioso" class="mood-btn" onclick="logDailyMood('Ansioso')"><i
+                                class="fas fa-bolt"></i><span style="font-size:0.65rem;">ANSIOSO</span></button>
+                        <button id="mood-Enojado" class="mood-btn" onclick="logDailyMood('Enojado')"><i
+                                class="fas fa-angry"></i><span style="font-size:0.65rem;">ENOJADO</span></button>
+                        <button id="mood-Triste" class="mood-btn" onclick="logDailyMood('Triste')"><i
+                                class="fas fa-frown"></i><span style="font-size:0.65rem;">TRISTE</span></button>
+                    </div>
+                </section>
+                <!-- HEALTH -->
+                <section class="tile-card health-box">
+                    <div class="tile-label">MÉTRICAS DE BIENESTAR</div>
+                    <div class="metrics-stack">
+                        <div class="metric-row">
+                            <span>Agua (<span id="target-water">2.5L</span>)</span>
+                            <div class="progress">
+                                <div id="bar-water" class="bar"></div>
+                            </div>
+                        </div>
+                        <div class="metric-row">
+                            <span>Sueño (8H)</span>
+                            <div class="progress">
+                                <div id="bar-sleep" class="bar"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <!-- HABITS -->
+                <section class="tile-card">
+                    <div class="tile-head">
+                        <span class="tile-label">HÁBITOS DE HOY</span>
+                        <div class="habit-tools">
+                            <button class="icon-btn small" onclick="toggleEditHabits()"><i
+                                    class="fas fa-pen"></i></button>
+                            <button class="add-btn" onclick="openHabitModal()"><i class="fas fa-plus"></i></button>
+                        </div>
+                    </div>
+                    <div id="action-grid" class="action-grid"></div>
+                </section>
+                <div class="tile-grid-2">
+                    <div class="tile-card bio-tile">
+                        <div class="bio-icon"><i class="fas fa-droplet"></i></div>
+                        <div class="bio-val"><span id="water-val">0.0</span>L</div>
+                        <div class="bio-ctrls"><button onclick="updateWater(-0.5)">-</button><button
+                                onclick="updateWater(0.5)">+</button></div>
+                    </div>
+                    <div class="tile-card bio-tile">
+                        <div class="bio-icon"><i class="fas fa-moon"></i></div>
+                        <div class="bio-val"><span id="sleep-val">0</span>H</div>
+                        <div class="bio-ctrls"><button onclick="updateSleep(-1)">-</button><button
+                                onclick="updateSleep(1)">+</button></div>
+                    </div>
+                </div>
+                <section class="tile-card nut-card">
+                    <div class="tile-label">REGISTRO NUTRICIONAL DIARIO</div>
+                    <div class="nut-fields">
+                        <div class="nut-f"><label>Desayuno</label><input type="text" id="nut-breakfast"
+                                oninput="saveDailyData()"></div>
+                        <div class="nut-f"><label>Almuerzo</label><input type="text" id="nut-lunch"
+                                oninput="saveDailyData()"></div>
+                        <div class="nut-f"><label>Cena</label><input type="text" id="nut-dinner"
+                                oninput="saveDailyData()"></div>
+                    </div>
+                </section>
+                <section class="tile-card">
+                    <div class="tile-label">BITÁCORA COGNITIVA & IA</div>
+                    <textarea id="welfare-notes" placeholder="Reflexiones del día..."
+                        oninput="saveDailyData()"></textarea>
+                    <button class="g-btn-main" onclick="analyzeCognitiveLog()"><i class="fas fa-robot"></i> Analizar con
+                        IA</button>
+                </section>
+                <section class="tile-card timeline-card">
+                    <div class="tile-label">HISTORIAL (GEO-TAGGED LUGARES)</div>
+                    <div id="daily-log" class="timeline-list"></div>
+                </section>
+            </div>
+            <!-- MONTHLY CALENDAR -->
+            <div id="monthly" class="view-content">
+                <section class="tile-card">
+                    <div class="tile-head">
+                        <span class="tile-label"><i class="fas fa-calendar-alt"></i> CALENDARIO MES</span>
+                        <div class="cal-nav">
+                            <button onclick="changeMonthlyView(-1)"><i class="fas fa-chevron-left"></i></button>
+                            <span id="monthly-title" style="font-weight: 800; text-transform: uppercase;">...</span>
+                            <button onclick="changeMonthlyView(1)"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                    <div style="font-size:0.75rem; color:#666; text-align:center; margin-bottom:15px;">Toca un día para
+                        abrir su registro detallado de rutas y actividades.<br>Colores según estado emocional.</div>
+                    <div id="monthly-calendar-grid" class="g-calendar-grid" style="margin-bottom:15px;"></div>
+                    <div id="monthly-ai-report"
+                        style="margin-top:20px; padding:15px; background:rgba(66,133,244,0.05); border-radius:12px; border:1px solid rgba(66,133,244,0.2); font-size:0.8rem; line-height:1.5;">
+                    </div>
+                </section>
+            </div>
+            <!-- STATS -->
+            <div id="stats" class="view-content">
+                <section class="tile-card">
+                    <div class="tile-label">TENDENCIA EMOCIONAL 7 DÍAS</div>
+                    <div style="display:flex; justify-content:space-around; align-items:flex-end; height:60px; padding-top:10px;"
+                        id="mood-bars"></div>
+                </section>
+                <section class="tile-card">
+                    <div class="tile-label">TENDENCIA HÍDRICA Y SUEÑO</div>
+                    <canvas id="chart-bio" style="max-height: 200px;"></canvas>
+                </section>
+                <section class="tile-card map-card">
+                    <div class="tile-label">TELEMETRÍA GPS DEL DÍA SELECCIONADO</div>
+                    <div id="phantom-map" class="map-container"></div>
+                    <div class="gps-hero">
+                        <div id="gps-mode" class="gps-mode">ESTÁTICO</div>
+                        <div class="gps-data"><span id="gps-speed">0.0 km/h</span> | <span id="gps-dist">0.00 km</span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+        <nav class="g-nav">
+            <button class="nav-item active" onclick="showView('dash')"><i
+                    class="fas fa-home"></i><span>DASH</span></button>
+            <button class="nav-item" onclick="showView('monthly')"><i
+                    class="fas fa-calendar-alt"></i><span>MES</span></button>
+            <button class="nav-item" onclick="showView('stats')"><i
+                    class="fas fa-chart-pie"></i><span>MÉTRICAS</span></button>
+        </nav>
+    </div>
+
+    <!-- MODALS -->
+
+    <!-- REGISTRATION SECURITY SHIELD -->
+    <div id="security-modal" class="modal" style="z-index:9999;">
+        <div class="modal-content profile">
+            <h3 style="color:var(--primary);"><i class="fas fa-shield-alt"></i> MATRIX DE SEGURIDAD BIOGYM</h3>
+            <p style="font-size:0.85rem; color:#666;">Tu biometría está localmente encriptada. Guarda esta frase
+                mnemotécnica inviolable de 12 palabras y tus códigos estáticos para recuperar cuenta si olvidas tu
+                clave.</p>
+            <div style="background:#eee; padding:15px; border-radius:8px; margin:15px 0;">
+                <strong style="color:red; font-size:0.8rem;">Frase Mnemotécnica (Cópiala):</strong><br>
+                <code id="sec-phrase" style="word-wrap:break-word; font-size:1.1rem; color:#222;">...</code>
+            </div>
+            <div style="background:#eee; padding:15px; border-radius:8px; margin:15px 0;">
+                <strong style="font-size:0.8rem;">Códigos de Respaldo Offline (Tokens):</strong><br>
+                <ul id="sec-tokens" style="font-family:monospace; margin-top:5px; padding-left:20px; color:#222;"></ul>
+            </div>
+            <button class="g-btn-main" onclick="confirmSecuritySaved()">LO HE GUARDADO CON SEGURIDAD</button>
+        </div>
+    </div>
+
+    <!-- RECOVERY FLOW -->
+    <div id="recovery-modal" class="modal">
+        <div class="modal-content profile">
+            <h3><i class="fas fa-key"></i> Protocolo de Recuperación</h3>
+            <p style="font-size:0.85rem; margin-bottom:15px;">Ingresa tu frase de 12 palabras O un token válido para
+                resetear tu bóveda local.</p>
+            <input type="email" id="rec-email" placeholder="Usuario/Correo a recuperar">
+            <textarea id="rec-code" placeholder="Pega tu frase de 12 palabras o tu Token único"
+                style="height:80px;"></textarea>
+            <button class="g-btn-main" onclick="executeRecovery()">VALIDAR AUTENTICIDAD Y RESETEAR</button>
+            <button class="g-btn-close" onclick="closeModal()">CANCELAR</button>
+        </div>
+    </div>
+
+    <!-- PROFILE -->
+    <div id="profile-modal" class="modal">
+        <div class="modal-content profile">
+            <h3>PANEL DE ADMINISTRACIÓN</h3>
+            <div class="user-hero">
+                <label for="user-avatar-upload" style="cursor:pointer;" title="Subir foto">
+                    <img id="user-avatar" src="https://via.placeholder.com/70" class="avatar" alt="Avatar">
+                </label>
+                <input type="file" id="user-avatar-upload" style="display:none;" accept="image/*"
+                    onchange="uploadAvatarLocal()">
+                <div class="file-upload-lbl" onclick="document.getElementById('user-avatar-upload').click()">Subir Foto
+                    de Perfil</div>
+                <div class="manual-profile">
+                    <input type="text" id="user-name-input" placeholder="Tu Nombre" onchange="updateProfileManual()">
+                </div>
+            </div>
+            <div class="bio-setup" style="margin-top:15px;">
+                <label>Estatura (metros):</label>
+                <input type="number" id="user-height" step="0.01" placeholder="Ej: 1.75" onchange="calcBMI()">
+                <label>Peso (kg):</label>
+                <input type="number" id="user-weight" step="0.1" placeholder="Ej: 70.5" onchange="calcBMI()">
+                <div class="bmi-result">Índice (IMC): <strong id="user-bmi"
+                        style="font-size:1.2rem;">--</strong><br><span id="bmi-status"></span></div>
+
+                <label style="margin-top:10px; display:block;">Sexo (IA):</label>
+                <select id="user-sex" onchange="updateProfileManual()"
+                    style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px;">
+                    <option value="none">No especificar</option>
+                    <option value="male">Masculino</option>
+                    <option value="female">Femenino</option>
+                </select>
+
+                <label style="margin-top:10px; display:block;">Actividad Principal:</label>
+                <select id="user-activity" onchange="updateProfileManual()"
+                    style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px;">
+                    <option value="none">No especificar</option>
+                    <option value="sedentary">Trabajo de Oficina / Sedentario</option>
+                    <option value="active">Trabajo Físico / Activo</option>
+                    <option value="student">Estudiante / Académico</option>
+                    <option value="athlete">Atleta / Deportivo</option>
+                </select>
+            </div>
+            <div class="settings-toggles">
+                <label class="toggle-row"><span>Habilitar GPS Automático</span><input type="checkbox" id="gps-toggle"
+                        onchange="toggleGPS()"></label>
+            </div>
+
+            <div style="margin-top:20px; text-align:left; border-top:1px solid var(--border); padding-top:15px;">
+                <label
+                    style="font-size: 0.75rem; font-weight: 700; color: var(--text-sec); display: block; margin-bottom: 5px;"><i
+                        class="fas fa-lock"></i> SEGURIDAD DE LA CUENTA</label>
+                <div style="display:flex; flex-direction:column; gap:5px;">
+                    <button class="g-btn-main" style="background:#000; font-size:0.85rem;"
+                        onclick="revealSecurePhrase()"><i class="fas fa-eye"></i> Revelar Frase Mnemotécnica</button>
+                    <button class="g-btn-main" style="background:#333; font-size:0.85rem;"
+                        onclick="changeUserPassword()"><i class="fas fa-key"></i> Cambiar Contraseña Local</button>
+                </div>
+            </div>
+
+            <div
+                style="margin:20px 0; padding:15px; background:rgba(66,133,244,0.05); border-radius:12px; font-size:0.8rem; text-align:center;">
+                <strong>Créditos:</strong><br>Aplicación Desarrollada por el Ing. Angel Rodriguez.<br>
+                <a href="https://nautiluz.github.io/Angel-Rodriguez/" target="_blank"
+                    style="color:var(--primary); text-decoration:none; display:inline-block; margin-top:5px;"><i
+                        class="fas fa-id-card"></i> Ver Tarjeta de Presentación</a>
+            </div>
+
+            <button class="g-btn-close" onclick="closeModal()">GUARDAR Y CERRAR</button>
+            <button class="g-btn-del" style="background:#5F6368; color:white;" onclick="appLogout()">CERRAR
+                SESIÓN</button>
+        </div>
+    </div>
+
+    <div id="habit-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="habit-modal-title">NUEVO HÁBITO</h3>
+            <input type="hidden" id="edit-habit-id" value="">
+            <input type="text" id="habit-name" placeholder="Ej: Entrenamiento">
+            <input type="text" id="habit-icon" placeholder="Ej: book, running, star" value="star">
+            <button class="g-btn-main" onclick="saveHabitData()">GUARDAR</button>
+            <button id="btn-del-habit" class="g-btn-del" onclick="deleteHabit()" style="display:none;">ELIMINAR
+                HÁBITO</button>
+            <button class="g-btn-close" onclick="closeModal()">CANCELAR</button>
+        </div>
+    </div>
+
+    <div id="guide-modal" class="modal">
+        <div class="modal-content profile" style="text-align:left;">
+            <h3>MANUAL OPERATIVO BIOGYM</h3>
+            <div style="font-size:0.85rem; line-height:1.6;">
+                <strong><i class="fas fa-home"></i> DASH (Panel Central):</strong> Aquí registras tu ingesta de agua,
+                horas de sueño y los hábitos completados (haz clic en ellos). Toda biometría modifica el motor
+                heurístico.<br><br>
+                <strong><i class="fas fa-brain"></i> BITÁCORA E IA:</strong> Escribe cómo te sientes (Ej: Salí a la
+                universidad y llegué cansado). Abajo, el orbe AI correlacionará tus niveles de agua, sueño, sexo y
+                hábitos para darte recomendaciones neuronales o de entrenamiento.<br><br>
+                <strong><i class="fas fa-map-marker-alt"></i> TELEMETRÍA (Mes):</strong> Todas las emociones que marques
+                registrarán silenciosamente las coordenadas GPS, permitiéndote ver dónde ocurre cada cambio anímico a lo
+                largo del día y generando un reporte clínico de todo tu trayecto.
+            </div>
+            <button class="g-btn-close" onclick="closeModal()">ENTENDIDO</button>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+
+</html>
