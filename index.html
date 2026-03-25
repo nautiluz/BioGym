@@ -45,6 +45,10 @@
                 <span class="auth-switch" style="color:var(--text-sec)" onclick="openRecoveryFlow()"><i
                         class="fas fa-key"></i> Recuperar Acceso</span>
             </div>
+            <div style="margin-top:15px; padding-top:15px; border-top:1px solid var(--border); text-align:center;">
+                <span class="auth-switch" style="color:var(--text-sec); font-size:0.8rem;"
+                    onclick="openContactModal()"><i class="fas fa-envelope"></i> Contacto / Soporte</span>
+            </div>
             <div style="margin-top:20px; font-size:0.75rem; color:#aaa;">Nota Migration: Cuentas v15 restauradas autom.
             </div>
         </div>
@@ -99,6 +103,30 @@
                     <!-- Filled by JS -->
                 </tbody>
             </table>
+            <!-- ADMIN BROADCAST PANEL -->
+            <div
+                style="margin:20px 0; padding:20px; background:rgba(251,188,4,0.08); border-radius:16px; border:1px dashed #FBBC04;">
+                <div style="font-weight:800; font-size:0.9rem; margin-bottom:10px;"><i class="fas fa-bullhorn"
+                        style="color:#FBBC04"></i> Mensajes del Sistema</div>
+                <p style="font-size:0.8rem; color:var(--text-sec); margin-bottom:10px;">Envía un anuncio a todos los
+                    usuarios. Aparecerá como banner al iniciar sesión.</p>
+                <input type="text" id="broadcast-version" placeholder="Versión (Ej: v20.1)"
+                    style="margin-bottom:8px; padding:8px; border:1px solid var(--border); border-radius:6px; width:100%;">
+                <textarea id="broadcast-msg" placeholder="Escribe el mensaje para los usuarios..."
+                    style="height:80px; width:100%;"></textarea>
+                <button class="g-btn-main" style="margin-top:5px; background:#FBBC04; color:#000;"
+                    onclick="sendBroadcast()"><i class="fas fa-paper-plane"></i> ENVIAR ANUNCIO</button>
+            </div>
+
+            <!-- CONTACT MESSAGES INBOX -->
+            <div
+                style="margin:10px 0; padding:20px; background:rgba(52,168,83,0.07); border-radius:16px; border:1px dashed var(--green);">
+                <div style="font-weight:800; font-size:0.9rem; margin-bottom:10px;"><i class="fas fa-inbox"
+                        style="color:var(--green)"></i> Mensajes de Contacto</div>
+                <div id="admin-contact-inbox" style="font-size:0.8rem; color:var(--text-sec);">Cargando mensajes...
+                </div>
+            </div>
+
         </main>
     </div>
 
@@ -125,6 +153,57 @@
                     <h2 id="dash-greeting">¡Hola!</h2>
                     <p id="dash-motd">"El progreso no es lineal, es constante."</p>
                 </div>
+                <!-- ANNOUNCEMENT BANNER -->
+                <div id="announcement-banner"
+                    style="display:none; background:linear-gradient(135deg,#174EA6,#4285F4); color:white; padding:12px 15px; border-radius:12px; margin-bottom:10px; font-size:0.8rem; position:relative;">
+                    <div id="announcement-text"></div>
+                    <button onclick="dismissBanner()"
+                        style="position:absolute; top:8px; right:8px; background:rgba(255,255,255,0.2); border:none; color:white; border-radius:50%; width:24px; height:24px; cursor:pointer;"><i
+                            class="fas fa-times"></i></button>
+                </div>
+
+                <!-- STEP COUNTER + LOCATION PROMPT -->
+                <section class="tile-card"
+                    style="background:linear-gradient(135deg,rgba(66,133,244,0.08), rgba(52,168,83,0.08)); border:1px solid rgba(66,133,244,0.2);">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <div
+                                style="font-size:0.7rem; font-weight:700; color:var(--text-sec); text-transform:uppercase; letter-spacing:0.5px;">
+                                <i class="fas fa-shoe-prints"></i> PASOS HOY
+                            </div>
+                            <div style="font-size:2.2rem; font-weight:900; color:var(--primary); letter-spacing:-1px;"
+                                id="step-count">0</div>
+                            <div style="font-size:0.7rem; color:var(--text-sec);"><span id="step-calories">0</span> kcal
+                                estimadas</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div
+                                style="font-size:0.7rem; font-weight:700; color:var(--text-sec); text-transform:uppercase; letter-spacing:0.5px;">
+                                <i class="fas fa-map-marker-alt"></i> ZONA ACTUAL
+                            </div>
+                            <div id="current-zone"
+                                style="font-size:0.85rem; font-weight:700; color:var(--text-main); max-width:150px;">
+                                Detectando...</div>
+                        </div>
+                    </div>
+                    <div id="location-mood-prompt"
+                        style="display:none; margin-top:12px; padding:10px; background:rgba(255,255,255,0.7); border-radius:8px; font-size:0.8rem;">
+                        <div id="location-prompt-text" style="font-weight:600; margin-bottom:8px;"></div>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <button onclick="logDailyMood('Feliz')"
+                                style="background:var(--green); color:white; border:none; border-radius:6px; padding:4px 10px; font-size:0.75rem; cursor:pointer;">Feliz</button>
+                            <button onclick="logDailyMood('Neutral')"
+                                style="background:var(--primary); color:white; border:none; border-radius:6px; padding:4px 10px; font-size:0.75rem; cursor:pointer;">Neutral</button>
+                            <button onclick="logDailyMood('Ansioso')"
+                                style="background:#FF9800; color:white; border:none; border-radius:6px; padding:4px 10px; font-size:0.75rem; cursor:pointer;">Ansioso</button>
+                            <button onclick="logDailyMood('Triste')"
+                                style="background:var(--red); color:white; border:none; border-radius:6px; padding:4px 10px; font-size:0.75rem; cursor:pointer;">Triste</button>
+                        </div>
+                        <div id="location-encourage"
+                            style="margin-top:8px; font-style:italic; color:var(--primary); font-size:0.75rem;"></div>
+                    </div>
+                </section>
+
                 <!-- AI COPILOT -->
                 <section class="tile-card ai-hero">
                     <div class="ai-box">
@@ -209,10 +288,14 @@
                 </section>
                 <section class="tile-card">
                     <div class="tile-label">BITÁCORA COGNITIVA & IA</div>
-                    <textarea id="welfare-notes" placeholder="Reflexiones del día..."
-                        oninput="saveDailyData()"></textarea>
-                    <button class="g-btn-main" onclick="analyzeCognitiveLog()"><i class="fas fa-robot"></i> Analizar con
-                        IA</button>
+                    <textarea id="welfare-notes"
+                        placeholder="Escribe tus reflexiones del día... El análisis aparece automáticamente."
+                        oninput="saveDailyData(); scheduleBitacoraAnalysis();"></textarea>
+                    <button class="g-btn-main" onclick="analyzeCognitiveLog()" style="margin-top:5px;"><i
+                            class="fas fa-robot"></i> Analizar con IA (Manual)</button>
+                    <div id="bitacora-typing-indicator"
+                        style="display:none; font-size:0.75rem; color:var(--primary); margin-top:5px;"><i
+                            class="fas fa-circle-notch fa-spin"></i> Analizando en tiempo real...</div>
                 </section>
                 <section class="tile-card timeline-card">
                     <div class="tile-label">HISTORIAL (GEO-TAGGED LUGARES)</div>
@@ -337,19 +420,29 @@
                     <option value="female">Femenino</option>
                 </select>
 
-                <label style="margin-top:10px; display:block;">Actividad Principal:</label>
+                <label style="margin-top:10px; display:block;">Actividad Principal / Tipo de Trabajo:</label>
                 <select id="user-activity" onchange="updateProfileManual()"
-                    style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px;">
+                    style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; margin-bottom:8px;">
                     <option value="none">No especificar</option>
                     <option value="sedentary">Trabajo de Oficina / Sedentario</option>
                     <option value="active">Trabajo Físico / Activo</option>
                     <option value="student">Estudiante / Académico</option>
                     <option value="athlete">Atleta / Deportivo</option>
                 </select>
+
+                <label>Apellido:</label>
+                <input type="text" id="user-apellido" placeholder="Tu Apellido" onchange="updateProfileManual()">
+                <label>Edad:</label>
+                <input type="number" id="user-age" placeholder="Ej: 35" onchange="updateProfileManual()">
             </div>
-            <div class="settings-toggles">
-                <label class="toggle-row"><span>Habilitar GPS Automático</span><input type="checkbox" id="gps-toggle"
-                        onchange="toggleGPS()"></label>
+            <div
+                style="margin-top:15px; padding:15px; background:rgba(52,168,83,0.06); border-radius:12px; border:1px dashed var(--green);">
+                <div style="font-size:0.75rem; font-weight:700; color:var(--text-sec); margin-bottom:8px;"><i
+                        class="fas fa-envelope"></i> CONTACTO / SOPORTE</div>
+                <textarea id="contact-msg-profile" placeholder="Escríbeme tu sugerencia o reporte de error..."
+                    style="height:70px;"></textarea>
+                <button class="g-btn-main" style="background:var(--green); margin-top:5px; font-size:0.85rem;"
+                    onclick="submitContactMessage()"><i class="fas fa-paper-plane"></i> ENVIAR</button>
             </div>
 
             <div style="margin-top:20px; text-align:left; border-top:1px solid var(--border); padding-top:15px;">
@@ -395,19 +488,74 @@
         <div class="modal-content profile" style="text-align:left;">
             <h3>MANUAL OPERATIVO BIOGYM</h3>
             <div style="font-size:0.85rem; line-height:1.6;">
-                <strong><i class="fas fa-home"></i> DASH (Panel Central):</strong> Aquí registras tu ingesta de agua,
-                horas de sueño y los hábitos completados (haz clic en ellos). Toda biometría modifica el motor
-                heurístico.<br><br>
-                <strong><i class="fas fa-brain"></i> BITÁCORA E IA:</strong> Escribe cómo te sientes (Ej: Salí a la
-                universidad y llegué cansado). Abajo, el orbe AI correlacionará tus niveles de agua, sueño, sexo y
-                hábitos para darte recomendaciones neuronales o de entrenamiento.<br><br>
-                <strong><i class="fas fa-map-marker-alt"></i> TELEMETRÍA (Mes):</strong> Todas las emociones que marques
-                registrarán silenciosamente las coordenadas GPS, permitiéndote ver dónde ocurre cada cambio anímico a lo
-                largo del día y generando un reporte clínico de todo tu trayecto.
+                <strong><i class="fas fa-home"></i> DASH (Panel Central):</strong> Registra agua, sueño y hábitos. El
+                contador de pasos y la zona GPS se actualizan automáticamente.<br><br>
+                <strong><i class="fas fa-brain"></i> BITÁCORA E IA:</strong> Escribe cómo te sientes. El análisis IA
+                aparece automáticamente 2.5 segundos después de que termines de escribir.<br><br>
+                <strong><i class="fas fa-map-marker-alt"></i> TELEMETRÍA (Mes):</strong> Las emociones registran
+                coordenadas GPS, permitiéndote ver dónde ocurre cada cambio anímico.<br><br>
+                <strong><i class="fas fa-shoe-prints"></i> PASOS:</strong> El acelerómetro de tu dispositivo cuenta los
+                pasos del día y estima las calorías quemadas.<br><br>
+                <strong><i class="fas fa-cloud"></i> SYNC:</strong> Los datos se guardan localmente y en Firebase. Si
+                pierdes conexión, se sincronizan automáticamente al reconectar.
             </div>
             <button class="g-btn-close" onclick="closeModal()">ENTENDIDO</button>
         </div>
     </div>
+
+    <!-- PROFILE WIZARD MODAL -->
+    <div id="profile-wizard-modal" class="modal" style="z-index:10001;">
+        <div class="modal-content profile">
+            <h3 style="color:var(--primary);"><i class="fas fa-user-check"></i> Completa tu Perfil BioGym</h3>
+            <p style="font-size:0.82rem; color:var(--text-sec); margin-bottom:15px;">Para que el análisis de IA sea
+                preciso necesitamos algunos datos básicos. Solo se hace una vez.</p>
+            <div class="bio-setup">
+                <label>Nombre Completo (Nombre y Apellido):</label>
+                <input type="text" id="wiz-name" placeholder="Ej: Angel Rodriguez">
+                <label>Edad:</label>
+                <input type="number" id="wiz-age" placeholder="Ej: 35">
+                <label>Estatura (metros):</label>
+                <input type="number" id="wiz-height" step="0.01" placeholder="Ej: 1.75">
+                <label>Peso (kg):</label>
+                <input type="number" id="wiz-weight" step="0.1" placeholder="Ej: 70.5">
+                <label>Sexo (IA):</label>
+                <select id="wiz-sex"
+                    style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; margin-bottom:10px;">
+                    <option value="none">No especificar</option>
+                    <option value="male">Masculino</option>
+                    <option value="female">Femenino</option>
+                </select>
+                <label>Tipo de Trabajo / Actividad Principal:</label>
+                <select id="wiz-activity"
+                    style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; margin-bottom:10px;">
+                    <option value="none">No especificar</option>
+                    <option value="sedentary">Trabajo de Oficina / Sedentario</option>
+                    <option value="active">Trabajo Físico / Activo</option>
+                    <option value="student">Estudiante / Académico</option>
+                    <option value="athlete">Atleta / Deportivo</option>
+                </select>
+            </div>
+            <button class="g-btn-main" onclick="saveProfileWizard()"><i class="fas fa-check-circle"></i> GUARDAR Y
+                COMENZAR</button>
+            <button class="g-btn-close" style="margin-top:8px;" onclick="skipProfileWizard()">Completar más
+                tarde</button>
+        </div>
+    </div>
+
+    <!-- CONTACT MODAL (from login screen) -->
+    <div id="contact-modal" class="modal">
+        <div class="modal-content">
+            <h3><i class="fas fa-envelope"></i> Contacto / Soporte</h3>
+            <p style="font-size:0.82rem; color:var(--text-sec); margin-bottom:15px;">Envía sugerencias, reportes de
+                errores o cualquier mensaje al desarrollador.</p>
+            <input type="email" id="contact-from" placeholder="Tu correo (opcional)">
+            <textarea id="contact-msg-modal" placeholder="Escribe tu mensaje aquí..." style="height:100px;"></textarea>
+            <button class="g-btn-main" onclick="submitContactFromModal()"><i class="fas fa-paper-plane"></i> ENVIAR
+                MENSAJE</button>
+            <button class="g-btn-close" style="margin-top:8px;" onclick="closeModal()">CERRAR</button>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 

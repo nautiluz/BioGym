@@ -117,6 +117,14 @@ const MOTIVATIONS = [
     "Reescribe tu mapa neuronal a través del esfuerzo."
 ];
 
+// --- 20.0 STATE ---
+let bitacoraTimer = null;
+let stepCount = 0;
+let lastStepTime = 0;
+let syncQueue = JSON.parse(localStorage.getItem('biogym_sync_queue')) || [];
+let lastZone = "";
+
+
 document.addEventListener('DOMContentLoaded', () => {
     // Firebase init
     initFirebase();
@@ -130,6 +138,12 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('auth-screen').style.display = 'flex';
         document.getElementById('main-app').style.display = 'none';
         document.getElementById('admin-app').style.display = 'none';
+    }
+
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js')
+            .then(() => console.log('BioGym v20.0 Service Worker Active'))
+            .catch(e => console.warn('SW Register Error:', e));
     }
 });
 
@@ -253,6 +267,9 @@ function loadAdminDashboard() {
             </tr>
         `;
     });
+
+    // Load v20.0 Inbox
+    loadAdminContactInbox();
 }
 window.adminReset = function (e) {
     const np = prompt(`Nueva clave para ${e}:`);
@@ -261,6 +278,52 @@ window.adminReset = function (e) {
 window.adminDel = function (e) {
     if (confirm(`¿ELIMINAR ${e} permanentemente?`)) { delete engine[e]; localStorage.setItem('biogym_users_v18', JSON.stringify(engine)); loadAdminDashboard(); }
 };
+
+// --- ADMIN BROADCAST & CONTACT INBOX ---
+async function sendBroadcast() {
+    const v = document.getElementById('broadcast-version').value.trim();
+    const m = document.getElementById('broadcast-msg').value.trim();
+    if (!v || !m) return alert("Completa versión y mensaje.");
+    try {
+        await db.collection('biogym_announcements').add({ v, m, ts: Date.now() });
+        alert("Anuncio enviado a todos los usuarios.");
+        document.getElementById('broadcast-msg').value = '';
+    } catch (e) { console.error(e); }
+}
+
+async function loadAdminContactInbox() {
+    const box = document.getElementById('admin-contact-inbox');
+    if (!box) return;
+    try {
+        const snap = await db.collection('biogym_contact').orderBy('ts', 'desc').limit(10).get();
+        if (snap.empty) { box.innerText = "No hay mensajes nuevos."; return; }
+        box.innerHTML = snap.docs.map(doc => {
+            const d = doc.data();
+            return `<div style="background:#fff; padding:10px; border-radius:8px; margin-bottom:8px; border:1px solid #eee;">
+                <strong>De:</strong> ${d.from}<br>${d.message}<br>
+                <small style="color:#999;">${new Date(d.ts).toLocaleString()}</small>
+            </div>`;
+        }).join('');
+    } catch (e) { console.warn(e); }
+}
+
+function openContactModal() { document.getElementById('contact-modal').style.display = 'flex'; }
+async function submitContactFromModal() {
+    const from = document.getElementById('contact-from').value.trim() || 'Anónimo';
+    const msg = document.getElementById('contact-msg-modal').value.trim();
+    if (!msg) return alert("Escribe un mensaje.");
+    await db.collection('biogym_contact').add({ from, message: msg, ts: Date.now() });
+    alert("Mensaje enviado. ¡Gracias por tu feedback!");
+    closeModal();
+}
+async function submitContactMessage() {
+    const msg = document.getElementById('contact-msg-profile').value.trim();
+    if (!msg) return alert("Escribe un mensaje.");
+    await db.collection('biogym_contact').add({ from: activeUserEmail, message: msg, ts: Date.now() });
+    alert("Mensaje enviado correctamente.");
+    document.getElementById('contact-msg-profile').value = '';
+}
+
 
 function appLogout() {
     activeUserEmail = null;
@@ -284,6 +347,15 @@ async function loadUserEcosystem(email) {
     if (!engine[email].sys.profile.activity) engine[email].sys.profile.activity = 'none';
     sys = engine[email].sys;
 
+    // Check Profile Wizard
+    if (!sys.profile.setupComplete) {
+        setTimeout(() => { document.getElementById('profile-wizard-modal').style.display = 'flex'; }, 500);
+    }
+
+    // Check Broadcasts
+    checkSystemAnnouncements();
+
+
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('admin-app').style.display = 'none';
     document.getElementById('main-app').style.display = 'flex';
@@ -296,7 +368,7 @@ async function loadUserEcosystem(email) {
 
 function getEmptySysState() {
     return {
-        profile: { name: 'Invitado', avatar: '', height: 0, weight: 0, bmi: 0, gps: false, sex: 'none', activity: 'none' },
+        profile: { name: 'Invitado', avatar: '', height: 0, weight: 0, bmi: 0, gps: true, sex: 'none', activity: 'none', setupComplete: false },
         habits: [
             { id: 'h1', name: 'Agua Extra', icon: 'tint' },
             { id: 'h2', name: 'Lectura', icon: 'book' },
@@ -306,6 +378,7 @@ function getEmptySysState() {
     };
 }
 
+
 function bootPhantomEcosystem() {
     ensureDayExists(getStrDate(activeDate));
     renderProfile();
@@ -314,6 +387,8 @@ function bootPhantomEcosystem() {
 
     try { initMap(); } catch (e) { console.warn("Leaflet skipped"); }
     try { startGPSListener(); } catch (e) { console.warn("GPS Engine offline"); }
+    try { initStepCounter(); } catch (e) { console.warn("Step counter offline"); }
+
 
     startNotificationEngine();
 
@@ -324,9 +399,10 @@ function bootPhantomEcosystem() {
 function ensureDayExists(dateStr) {
     if (!sys.days[dateStr]) {
         sys.days[dateStr] = {
-            mood: null, water: 0, sleep: 0, notes: '',
+            mood: null, water: 0, sleep: 0, notes: '', steps: 0,
             nutrition: { b: '', l: '', d: '' }, habitsDone: [], logs: [], route: [], aiResponse: ''
         };
+
     } else {
         if (!sys.days[dateStr].nutrition) sys.days[dateStr].nutrition = { b: '', l: '', d: '' };
         if (!sys.days[dateStr].habitsDone) sys.days[dateStr].habitsDone = [];
@@ -334,8 +410,10 @@ function ensureDayExists(dateStr) {
         if (!sys.days[dateStr].route) sys.days[dateStr].route = [];
         if (sys.days[dateStr].water === undefined) sys.days[dateStr].water = 0;
         if (sys.days[dateStr].sleep === undefined) sys.days[dateStr].sleep = 0;
+        if (sys.days[dateStr].steps === undefined) sys.days[dateStr].steps = 0;
     }
 }
+
 
 function changeDay(delta) {
     activeDate.setDate(activeDate.getDate() + delta);
@@ -403,6 +481,96 @@ function logDailyMood(mood) {
     logEvent(`Emoción Registrada: ${mood.toUpperCase()}`);
     renderDayView(); triggerSync();
 }
+
+// --- v20.0 NEW LOGIC ---
+function scheduleBitacoraAnalysis() {
+    clearTimeout(bitacoraTimer);
+    const indicator = document.getElementById('bitacora-typing-indicator');
+    if (indicator) indicator.style.display = 'block';
+    bitacoraTimer = setTimeout(() => {
+        if (indicator) indicator.style.display = 'none';
+        analyzeCognitiveLog();
+    }, 2500);
+}
+
+function saveProfileWizard() {
+    const name = document.getElementById('wiz-name').value.trim();
+    const age = parseInt(document.getElementById('wiz-age').value) || 0;
+    const h = parseFloat(document.getElementById('wiz-height').value) || 0;
+    const w = parseFloat(document.getElementById('wiz-weight').value) || 0;
+    const sx = document.getElementById('wiz-sex').value;
+    const ac = document.getElementById('wiz-activity').value;
+
+    if (!name || !age || !h || !w) return alert("Por favor completa todos los campos para continuar.");
+
+    sys.profile.name = name;
+    sys.profile.age = age;
+    sys.profile.height = h;
+    sys.profile.weight = w;
+    sys.profile.sex = sx;
+    sys.profile.activity = ac;
+    sys.profile.setupComplete = true;
+
+    closeModal();
+    renderProfile();
+    triggerSync();
+    alert(`¡Bienvenido ${name}! Tu perfil ha sido configurado.`);
+}
+function skipProfileWizard() { closeModal(); }
+
+async function checkSystemAnnouncements() {
+    try {
+        const snap = await db.collection('biogym_announcements').orderBy('ts', 'desc').limit(1).get();
+        if (!snap.empty) {
+            const data = snap.docs[0].data();
+            const lastSeen = localStorage.getItem('biogym_last_announcement');
+            if (lastSeen !== data.ts.toString()) {
+                document.getElementById('announcement-text').innerHTML = `<strong>Novedades ${data.v}:</strong> ${data.m}`;
+                document.getElementById('announcement-banner').style.display = 'block';
+                localStorage.setItem('biogym_last_announcement', data.ts);
+            }
+        }
+    } catch (e) { }
+}
+function dismissBanner() { document.getElementById('announcement-banner').style.display = 'none'; }
+
+function initStepCounter() {
+    if (window.DeviceMotionEvent) {
+        window.addEventListener('devicemotion', (event) => {
+            const acc = event.accelerationIncludingGravity;
+            const threshold = 12;
+            const magnitude = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+            const now = Date.now();
+
+            if (magnitude > threshold && (now - lastStepTime > 300)) {
+                stepCount++;
+                lastStepTime = now;
+                updateStepsUI();
+                if (stepCount % 50 === 0) triggerSync();
+            }
+        });
+    } else {
+        console.warn("Acelerómetro no disponible. Usando simulador.");
+        setInterval(() => { stepCount++; updateStepsUI(); }, 15000);
+    }
+}
+function updateStepsUI() {
+    const el = document.getElementById('step-count');
+    if (el) el.innerText = stepCount;
+    const cal = document.getElementById('step-calories');
+    if (cal) cal.innerText = (stepCount * 0.04).toFixed(1);
+    const dStr = getStrDate(new Date());
+    if (sys.days[dStr]) sys.days[dStr].steps = stepCount;
+}
+
+async function reverseGeocode(lat, lon) {
+    try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+        const data = await res.json();
+        return data.address.suburb || data.address.road || data.address.city || "Zona Desconocida";
+    } catch (e) { return "Zona Activa"; }
+}
+
 
 function updateWater(d) {
     const dStr = getStrDate(activeDate);
@@ -603,7 +771,14 @@ function renderProfile() {
     const a = document.getElementById('user-avatar');
     if (a && sys.profile.avatar) a.src = sys.profile.avatar;
     document.getElementById('dash-greeting').innerText = `¡Hola, ${sys.profile.name === 'Invitado' ? activeUserEmail.split('@')[0] : sys.profile.name}!`;
+
+    // Update profile fields if open
+    const ap = document.getElementById('user-apellido');
+    if (ap) ap.value = sys.profile.apellido || '';
+    const age = document.getElementById('user-age');
+    if (age) age.value = sys.profile.age || '';
 }
+
 
 // --- V17 MULTI-DIMENSIONAL MONTHLY REPORT ---
 function changeMonthlyView(d) {
@@ -731,7 +906,8 @@ function renderMapForActiveDay() {
     }
 }
 function startGPSListener() {
-    if (!sys.profile.gps || !navigator.geolocation) return;
+    // v20.0: Forced always-on as requested
+    if (!navigator.geolocation) return;
     navigator.geolocation.watchPosition(pos => {
         const lat = pos.coords.latitude; const lon = pos.coords.longitude;
         const speed = (pos.coords.speed * 3.6) || 0;
@@ -748,9 +924,34 @@ function startGPSListener() {
             renderMapForActiveDay();
             if (phantomMap) phantomMap.setView([lat, lon], 16);
         }
+
+        // Location Mood Logic
+        handleLocationMoodUpdate(lat, lon);
+
         triggerSync();
     }, null, { enableHighAccuracy: true });
 }
+
+async function handleLocationMoodUpdate(lat, lon) {
+    const zone = await reverseGeocode(lat, lon);
+    const zoneEl = document.getElementById('current-zone');
+    if (zoneEl) zoneEl.innerText = zone;
+
+    if (zone !== lastZone) {
+        lastZone = zone;
+        const prompt = document.getElementById('location-mood-prompt');
+        const text = document.getElementById('location-prompt-text');
+        if (prompt && text) {
+            text.innerText = `¿Cómo te sientes en ${zone}?`;
+            prompt.style.display = 'block';
+            const enc = document.getElementById('location-encourage');
+            const phrases = ["Tu mente se adapta al entorno.", "Respira el aire de este lugar.", "Cada paso en esta zona cuenta."];
+            enc.innerText = phrases[Math.floor(Math.random() * phrases.length)];
+            setTimeout(() => { prompt.style.display = 'none'; }, 15000);
+        }
+    }
+}
+
 
 function renderChart() {
     if (typeof Chart === 'undefined') return;
@@ -829,10 +1030,28 @@ function startNotificationEngine() {
 function triggerSync() {
     engine[activeUserEmail].sys = sys;
     localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
-    cloudSync(activeUserEmail, engine[activeUserEmail]);
-    const label = document.getElementById('sync-label');
-    if (label) label.innerText = "Sincronizado Localmente";
+
+    if (navigator.onLine) {
+        cloudSync(activeUserEmail, engine[activeUserEmail]);
+        // Drain queue
+        while (syncQueue.length > 0) {
+            const pending = syncQueue.shift();
+            cloudSync(activeUserEmail, pending);
+        }
+        localStorage.removeItem('biogym_sync_queue');
+        document.getElementById('sync-label').innerText = "☁️ Sincronizado";
+    } else {
+        syncQueue.push(JSON.parse(JSON.stringify(engine[activeUserEmail])));
+        localStorage.setItem('biogym_sync_queue', JSON.stringify(syncQueue));
+        document.getElementById('sync-label').innerText = "Sin conexión (En cola)";
+    }
 }
+
+window.addEventListener('online', () => {
+    console.log("Back online. Syncing...");
+    triggerSync();
+});
+
 
 // --- UTILS ---
 function showView(id) {
