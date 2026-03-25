@@ -725,7 +725,10 @@ function openProfilePanel() {
     document.getElementById('user-weight').value = sys.profile.weight || '';
     document.getElementById('user-sex').value = sys.profile.sex;
     document.getElementById('user-activity').value = sys.profile.activity;
-    document.getElementById('gps-toggle').checked = sys.profile.gps;
+
+    const gpsToggle = document.getElementById('gps-toggle');
+    if (gpsToggle) gpsToggle.checked = sys.profile.gps;
+
     calcBMI();
     document.getElementById('profile-modal').style.display = 'flex';
 }
@@ -765,12 +768,22 @@ function calcBMI() {
     }
     triggerSync();
 }
-function toggleGPS() { sys.profile.gps = document.getElementById('gps-toggle').checked; if (sys.profile.gps) startGPSListener(); triggerSync(); }
+function toggleGPS() {
+    const gt = document.getElementById('gps-toggle');
+    if (gt) {
+        sys.profile.gps = gt.checked;
+        if (sys.profile.gps) startGPSListener();
+        triggerSync();
+    }
+}
 
 function renderProfile() {
     const a = document.getElementById('user-avatar');
     if (a && sys.profile.avatar) a.src = sys.profile.avatar;
     document.getElementById('dash-greeting').innerText = `¡Hola, ${sys.profile.name === 'Invitado' ? activeUserEmail.split('@')[0] : sys.profile.name}!`;
+
+    const dw = document.getElementById('dash-weight-val');
+    if (dw) dw.innerText = sys.profile.weight || '0';
 
     // Update profile fields if open
     const ap = document.getElementById('user-apellido');
