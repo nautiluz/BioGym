@@ -2,6 +2,9 @@
  * BIOGYM v20.0 - SISTEMA DE AUTENTICACION
  */
 
+// BioGym v20.0 - ACTUALIZADO: </span>
+alert('BioGym ACTUALIZADO en GitHub');
+
 // === VARIABLES GLOBALES ===
 var db = null;
 var engine = {};
