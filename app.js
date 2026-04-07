@@ -265,7 +265,6 @@ function triggerSync() {
         }, 2000);
     }
 }
-}
 
 // --- ACCIONES DIARIAS ---
 function updateWater(d) {
