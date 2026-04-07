@@ -1,12 +1,13 @@
 /**
  * BIOGYM OS v20.0 | ECOSYSTEM
  */
+alert("APP.JS CARGADO!");
 
-window.onerror = function (msg, url, line) {
-    console.error("BioGym Error:", msg, "at line", line);
-    alert("Error: " + msg);
-    return false;
-};
+function appLogin() {
+    alert("FUNCION APP LOGIN OK");
+}
+
+window.appLogin = appLogin;
 
 const WORDS = ["acero", "bosque", "cielo", "delta", "esfuerzo", "fuego", "gigante", "hierro", "impulso", "juego", "kilo", "luna", "mente", "nube", "oro", "plano", "quantum", "roca", "sol", "tiempo", "universo", "valor", "web", "xenon", "yunque", "zen", "alma", "brote", "cima", "diamante", "eco", "faro"];
 
