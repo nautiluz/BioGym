@@ -68,8 +68,10 @@
         </header>
         <main class="scroll-area" style="padding-top:20px;">
             <h2>Centro de Control Global</h2>
-            <p style="color:var(--text-sec); font-size:0.9rem;">Visor de usuarios registrados y gestión de matrices de
-                seguridad.</p>
+            <p style="color:var(--text-sec); font-size:0.9rem;">Gestión completa de usuarios</p>
+            <button class="g-btn-main" onclick="adminAdd()" style="background:var(--green); margin:10px 0;">
+                <i class="fas fa-user-plus"></i> AGREGAR USUARIO
+            </button>
 
             <!-- FIREBASE CONFIG PANEL -->
             <div
@@ -115,12 +117,13 @@
             <table
                 style="width:100%; text-align:left; border-collapse:collapse; background:white; border-radius:12px; overflow:hidden; box-shadow:var(--shadow); margin-top:20px;">
                 <thead style="background:var(--primary); color:white;">
-                    <tr>
+<tr style="background:var(--primary); color:white;">
                         <th style="padding:10px;">Usuario</th>
-                        <th style="padding:10px;">Último Acceso</th>
-                        <th style="padding:10px;">Pasos</th>
-                        <th style="padding:10px;">Estado</th>
-                        <th style="padding:10px;">Acciones</th>
+                        <th style="padding:10px;">Último Login</th>
+                        <th style="padding:10px;">Peso</th>
+                        <th style="padding:10px;">Activo</th>
+                        <th style="padding:10px;">Editar</th>
+                        <th style="padding:10px;">Eliminar</th>
                     </tr>
                 </thead>
                 <tbody id="admin-user-list">

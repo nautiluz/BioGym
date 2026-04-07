@@ -127,20 +127,106 @@ function loadUserEcosystem(email) {
 
 function loadAdminUsers() {
     var list = document.getElementById('admin-user-list');
+    if (!list) return;
+    
     list.innerHTML = '';
     var emails = Object.keys(engine);
+    
+    if (emails.length === 0) {
+        list.innerHTML = '<tr><td colspan="6">No hay usuarios registrados</td></tr>';
+    }
+    
     emails.forEach(function(e) {
-        var date = engine[e].lastLogin ? new Date(engine[e].lastLogin).toLocaleString() : 'Nunca';
-        list.innerHTML += '<tr><td>'+e+'</td><td>'+date+'</td><td><button onclick="adminReset(\''+e+'\')">Reset</button> <button onclick="adminDel(\''+e+'\')">X</button></td></tr>';
+        var u = engine[e];
+        var date = u.lastLogin ? new Date(u.lastLogin).toLocaleString() : 'Nunca';
+        var name = (u.profile && u.profile.name) || e.split('@')[0];
+        var peso = (u.profile && u.profile.weight) || '--';
+        var ultimo = u.lastLogin ? '✅' : '❌';
+        
+        list.innerHTML += '<tr style="border-bottom:1px solid #ddd;">' +
+            '<td style="padding:8px;"><strong>'+name+'</strong><br><small style="color:#666;">'+e+'</small></td>' +
+            '<td style="padding:8px;">'+date+'</td>' +
+            '<td style="padding:8px;">'+peso+' kg</td>' +
+            '<td style="padding:8px;">'+ultimo+'</td>' +
+            '<td style="padding:8px;"><button onclick="adminEdit(\''+e+'\')" style="background:#4285F4; color:white; border:none; padding:5px 8px; border-radius:4px; cursor:pointer;">✏️ Editar</button></td>' +
+            '<td style="padding:8px;"><button onclick="adminDel(\''+e+'\')" style="background:#EA4335; color:white; border:none; padding:5px 8px; border-radius:4px; cursor:pointer;">🗑️</button></td>' +
+            '</tr>';
     });
 }
 
-function adminReset(email) {
-    var nueva = prompt('Nueva clave para ' + email);
-    if (nueva) { engine[email].password = nueva; saveEngine(); alert('OK'); }
+function adminAdd() {
+    var email = prompt('Correo del nuevo usuario:');
+    if (!email) return;
+    email = email.toLowerCase().trim();
+    
+    if (engine[email]) {
+        alert('Este usuario ya existe');
+        return;
+    }
+    
+    var pass = prompt('Contraseña para ' + email + ':');
+    if (!pass) return;
+    
+    engine[email] = {
+        password: pass,
+        created: Date.now(),
+        lastLogin: null,
+        profile: { name: email.split('@')[0] },
+        days: {},
+        habits: [
+            { id: 'h1', name: 'Agua', icon: 'tint' },
+            { id: 'h2', name: 'Ejercicio', icon: 'running' },
+            { id: 'h3', name: 'Lectura', icon: 'book' }
+        ]
+    };
+    
+    saveEngine();
+    loadAdminUsers();
+    alert('✅ Usuario ' + email + ' creado');
 }
+
+function adminEdit(email) {
+    var u = engine[email];
+    if (!u) return;
+    
+    var nombre = prompt('Nombre:', u.profile && u.profile.name ? u.profile.name : email.split('@')[0]);
+    var peso = prompt('Peso (kg):', u.profile && u.profile.weight ? u.profile.weight : '');
+    var pass = prompt('Nueva contraseña (dejar vacío para mantener):');
+    
+    if (nombre !== null) {
+        if (!u.profile) u.profile = {};
+        u.profile.name = nombre;
+    }
+    if (peso !== null && peso !== '') {
+        if (!u.profile) u.profile = {};
+        u.profile.weight = peso;
+    }
+    if (pass !== null && pass !== '') {
+        u.password = pass;
+    }
+    
+    saveEngine();
+    loadAdminUsers();
+    alert('✅ Usuario actualizado');
+}
+
+function adminReset(email) {
+    var nueva = prompt('Nueva contraseña para ' + email + ':');
+    if (nueva) { 
+        engine[email].password = nueva; 
+        saveEngine(); 
+        loadAdminUsers();
+        alert('✅ Contraseña cambiada'); 
+    }
+}
+
 function adminDel(email) {
-    if (confirm('Eliminar ' + email + '?')) { delete engine[email]; saveEngine(); loadAdminUsers(); }
+    if (confirm('¿Eliminar usuario ' + email + '? Esta acción no se puede deshacer.')) { 
+        delete engine[email]; 
+        saveEngine(); 
+        loadAdminUsers();
+        alert('✅ Usuario eliminado');
+    }
 }
 
 // === DATOS ===
