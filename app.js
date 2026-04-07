@@ -942,9 +942,6 @@ const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
 let gapiLoaded = false;
 let gisSignedIn = false;
 
-let gapiLoaded = false;
-let gisSignedIn = false;
-
 function initGoogleApi() {
     if (typeof gapi !== 'undefined') {
         gapi.load('client:auth2', async () => {
