@@ -254,7 +254,24 @@ function renderDashboard() {
     if (sv) sv.innerText = (day.sleep || 0);
     if (sc) sc.innerText = (day.steps || 0);
     
+    // Actualizar capsula de estado
+    var cw = $('capsule-water');
+    var cs = $('capsule-steps');
+    var cm = $('capsule-mood');
+    if (cw) cw.innerText = (day.water || 0).toFixed(1);
+    if (cs) cs.innerText = (day.steps || 0);
+    if (cm) cm.innerText = (day.mood || '-').substring(0, 1);
+    
     renderHabits();
+}
+
+// === BOTON FLOTANTE ===
+function openQuickAdd() {
+    var sel = prompt('Que registrar?\n1 = +0.5L Agua\n2 = +1000 pasos\n3 = +1h Sueno\n4 = Estado Feliz');
+    if (sel === '1') { updateWater(0.5); alert('+0.5L agua'); }
+    else if (sel === '2') { var f=getToday(); if(!sys.days[f])sys.days[f]={}; sys.days[f].steps=(sys.days[f].steps||0)+1000; saveEngine(); alert('+1000 pasos'); }
+    else if (sel === '3') { updateSleep(1); alert('+1h sueno'); }
+    else if (sel === '4') { logDailyMood('Feliz'); alert('Estado: Feliz'); }
 }
 
 function renderHabits() {
@@ -363,10 +380,18 @@ function closeModal(id) {
 
 // === NAVEGACION ===
 function showView(id) {
-    var views = document.querySelectorAll('.view-content');
-    views.forEach(function(v) { if (v) v.classList.remove('active'); });
-    var view = $(id);
-    if (view) view.classList.add('active');
+    try {
+        var views = document.querySelectorAll('.view-content');
+        if (views) {
+            views.forEach(function(v) { 
+                if (v && v.classList) v.classList.remove('active'); 
+            });
+        }
+        var view = $(id);
+        if (view && view.classList) view.classList.add('active');
+    } catch(e) {
+        console.error('showView error:', e);
+    }
 }
 
 function changeMonthlyView(delta) {
