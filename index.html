@@ -165,26 +165,10 @@
                 <div id="sync-label" class="sync-status"><i class="fas fa-cloud"></i></div>
             </div>
             <div class="header-tools">
-                <button class="icon-btn" onclick="toggleDarkMode()"><i class="fas fa-moon"></i></button>
+                <button class="icon-btn" onclick="openGuideModal()"><i class="fas fa-question-circle"></i></button>
                 <button class="icon-btn" onclick="openProfilePanel()"><i class="fas fa-user-circle"></i></button>
             </div>
         </header>
-
-        <!-- CÁPSULA DE ESTADO -->
-        <div class="status-capsule">
-            <div class="status-ring">
-                <span class="ring-val" id="capsule-water">0</span>
-                <span class="ring-label">💧 Agua</span>
-            </div>
-            <div class="status-ring">
-                <span class="ring-val" id="capsule-steps">0</span>
-                <span class="ring-label">👟 Pasos</span>
-            </div>
-            <div class="status-ring">
-                <span class="ring-val" id="capsule-mood">-</span>
-                <span class="ring-label">❤️ Estado</span>
-            </div>
-        </div>
         <div class="historical-nav" id="hist-nav-bar">
             <button onclick="changeDay(-1)"><i class="fas fa-arrow-left"></i></button>
             <div class="current-day-label" id="active-day-label">HOY</div>
@@ -414,7 +398,7 @@
                     </div>
                     <div style="font-size:0.75rem; color:#666; text-align:center; margin-bottom:15px;">Toca un día para
                         abrir su registro detallado de rutas y actividades.<br>Colores según estado emocional.</div>
-                    <div id="monthly-calendar-grid" class="g-calendar-grid" style="display:grid; grid-template-columns:repeat(7,1fr); gap:3px; margin-bottom:15px;"></div>
+                    <div id="monthly-calendar-grid" class="g-calendar-grid" style="margin-bottom:15px;"></div>
                     <div id="monthly-ai-report"
                         style="margin-top:20px; padding:15px; background:rgba(66,133,244,0.05); border-radius:12px; border:1px solid rgba(66,133,244,0.2); font-size:0.8rem; line-height:1.5;">
                     </div>
@@ -442,16 +426,13 @@
                 </section>
             </div>
         </main>
-
-        <!-- Botón Flotante -->
-        <button class="fab" onclick="openQuickAdd()">+</button>
-
-        <!-- Navegación Inferior -->
-        <nav class="bottom-nav">
-            <button class="nav-item active" onclick="showView('dash')"><i class="fas fa-home"></i><span>HOY</span></button>
-            <button class="nav-item" onclick="showView('monthly')"><i class="fas fa-calendar-alt"></i><span>MES</span></button>
-            <button class="nav-item" onclick="showView('stats')"><i class="fas fa-chart-line"></i><span>GRÁF</span></button>
-            <button class="nav-item" onclick="openProfilePanel()"><i class="fas fa-cog"></i><span>PERFIL</span></button>
+        <nav class="g-nav">
+            <button class="nav-item active" onclick="showView('dash')"><i
+                    class="fas fa-home"></i><span>DASH</span></button>
+            <button class="nav-item" onclick="showView('monthly')"><i
+                    class="fas fa-calendar-alt"></i><span>MES</span></button>
+            <button class="nav-item" onclick="showView('stats')"><i
+                    class="fas fa-chart-pie"></i><span>MÉTRICAS</span></button>
         </nav>
     </div>
 
@@ -595,14 +576,6 @@
             <button id="btn-del-habit" class="g-btn-del" onclick="deleteHabit()" style="display:none;">ELIMINAR
                 HÁBITO</button>
             <button class="g-btn-close" onclick="closeModal()">CANCELAR</button>
-        </div>
-    </div>
-
-    <div id="exercise-modal" class="modal">
-        <div class="modal-content">
-            <h3>🏋️ REGISTRAR EJERCICIO</h3>
-            <div id="exercise-list" class="exercise-list"></div>
-            <button class="g-btn-close" onclick="closeModal()">CERRAR</button>
         </div>
     </div>
 
