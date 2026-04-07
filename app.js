@@ -1,6 +1,12 @@
 /**
  * BIOGYM v20.0 - CODIGO COMPLETO
  */
+window.onerror = function(msg) {
+    alert('Error: ' + msg);
+    return false;
+};
+
+try {
 
 // === VARIABLES ===
 var db = null;
@@ -402,4 +408,9 @@ function changeUserPassword() {
         saveEngine();
         alert('Contrasena cambiada');
     }
+}
+
+} catch(e) {
+    console.error('BioGym Error:', e);
+    alert('Error: ' + e.message);
 }
