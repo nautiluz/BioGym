@@ -17,25 +17,6 @@
     --yellow: #FBBC04;
 }
 
-@media (min-width: 768px) {
-    .app-wrap { max-width: 480px; margin: 0 auto; }
-    body { background: #e5e5e5; }
-    #auth-screen { background: linear-gradient(135deg, #F8F9FA 0%, #E8F0FE 100%); }
-    .tile-card { padding: 20px; }
-    .tile-card:hover { transform: translateY(-2px); transition: 0.2s; }
-}
-
-@media (min-width: 1024px) {
-    .app-wrap { max-width: 420px; border-radius: 20px; margin: 20px auto; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
-    .tile-grid-2 { grid-template-columns: repeat(2, 1fr); }
-}
-
-@media (max-width: 380px) {
-    .app-wrap { width: 100%; }
-    .action-grid { grid-template-columns: repeat(2, 1fr); }
-    .tile-grid-2 { grid-template-columns: 1fr; }
-}
-
 * {
     box-sizing: border-box;
     margin: 0;
@@ -381,12 +362,6 @@ body {
     font-size: 0.8rem;
     font-weight: 600;
 }
-
-.sleep-quality-row { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
-.sleep-quality-row span { font-size: 0.75rem; color: var(--text-sec); }
-.quality-btns { display: flex; gap: 3px; }
-.quality-btns button { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-color); font-size: 0.7rem; cursor: pointer; }
-.quality-btns button:hover { background: var(--primary-light); border-color: var(--primary); }
 
 .progress {
     flex: 1;
@@ -848,44 +823,4 @@ textarea {
     100% {
         box-shadow: 0 0 0 0 rgba(66, 133, 244, 0);
     }
-}
-
-/* PESO Y NUTRICION */
-.weight-input-row { display: flex; gap: 10px; margin-bottom: 15px; }
-.weight-input-row input { flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: 8px; }
-.weight-chart-row { margin: 15px 0; }
-.macros-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-.macro-input label { display: block; font-size: 0.7rem; color: var(--text-sec); margin-bottom: 3px; }
-.macro-input input { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; }
-
-/* EJERCICIOS */
-.exercise-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-.exercise-btn { background: var(--bg-color); border: 1px solid var(--border); border-radius: 10px; padding: 12px 8px; cursor: pointer; text-align: center; transition: 0.2s; }
-.exercise-btn i { font-size: 1.2rem; color: var(--primary); display: block; margin-bottom: 4px; }
-.exercise-btn span { font-size: 0.75rem; font-weight: 600; color: var(--text-main); display: block; }
-.exercise-btn small { font-size: 0.65rem; color: var(--text-sec); }
-.exercise-btn:hover { background: var(--primary-light); border-color: var(--primary); }
-.exercise-done { background: var(--green-light); padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; margin-bottom: 5px; }
-.exercise-done i { color: var(--green); margin-right: 5px; }
-
-/* MEDICIONES */
-.measure-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px; }
-.measure-item label { display: block; font-size: 0.7rem; color: var(--text-sec); }
-.measure-item input { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; }
-
-/* FOTOS PROGRESO */
-.progress-photos-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 10px; }
-.progress-thumb { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; cursor: pointer; }
-
-/* RESPONSIVE MEJORAS */
-@media (min-width: 768px) {
-    .exercise-list { grid-template-columns: repeat(4, 1fr); }
-    .macros-row { grid-template-columns: repeat(4, 1fr); }
-    .measure-grid { grid-template-columns: repeat(4, 1fr); }
-    .progress-photos-grid { grid-template-columns: repeat(6, 1fr); }
-}
-
-@media (max-width: 380px) {
-    .exercise-list { grid-template-columns: 1fr; }
-    .measure-grid { grid-template-columns: 1fr; }
 }

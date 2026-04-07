@@ -1,19 +1,16 @@
 {
-  "name": "BioGym OS - Control Físico y Anímico",
-  "short_name": "BioGym",
-  "description": "Control de peso, ejercicios, nutrición y estado emocional",
+  "name": "90-Day Bullet Journal",
+  "short_name": "My Journal",
+  "description": "Digitalize your physical 90-day journal.",
   "start_url": "./index.html",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#F8F9FA",
-  "theme_color": "#4285F4",
-  "categories": ["health", "fitness", "lifestyle"],
+  "background_color": "#f9f7f2",
+  "theme_color": "#e8d5cc",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/3208/3208759.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/3590/3590656.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
   ]
 }
