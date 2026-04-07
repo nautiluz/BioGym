@@ -38,16 +38,16 @@
             <input type="email" id="auth-email" placeholder="Correo electrónico o Admin">
             <input type="password" id="auth-pass" placeholder="Contraseña">
 
-            <button class="auth-btn" id="btn-login-action" onclick="alert('BOTON OK - entrando'); appLogin()">ENTRAR AL SISTEMA</button>
+            <button class="auth-btn" id="btn-login-action" onclick="doLogin()">ENTRAR AL SISTEMA</button>
             <button class="auth-btn" id="btn-login-bio"
                 style="background:#555; display:flex; gap:10px; justify-content:center; align-items:center; margin-top:10px;"
-                onclick="triggerBiometricLogin()"><i class="fas fa-fingerprint"></i> INGRESO BIOMÉTRICO
+                onclick="doBiometric()"><i class="fas fa-fingerprint"></i> INGRESO BIOMÉTRICO
                 (WebAuthn)</button>
 
             <div style="display:flex; justify-content:space-between; margin-top:15px; font-size:0.85rem;">
-                <span class="auth-switch" onclick="toggleAuthMode()"><i class="fas fa-user-plus"></i> Crear
+                <span class="auth-switch" onclick="toggleMode()"><i class="fas fa-user-plus"></i> Crear
                     Cuenta</span>
-                <span class="auth-switch" style="color:var(--text-sec)" onclick="openRecoveryFlow()"><i
+                <span class="auth-switch" style="color:var(--text-sec)" onclick="recoverAccount()"><i
                         class="fas fa-key"></i> Recuperar Acceso</span>
             </div>
             <div style="margin-top:15px; padding-top:15px; border-top:1px solid var(--border); text-align:center;">
@@ -68,7 +68,7 @@
                 <div class="g-logo">BioGym <span class="v-pill" style="background:var(--red);">ADMIN</span></div>
             </div>
             <div class="header-tools">
-                <button class="g-btn-del" onclick="appLogout()">CERRAR SESIÓN</button>
+                <button class="g-btn-del" onclick="logout()">CERRAR SESIÓN</button>
             </div>
         </header>
         <main class="scroll-area" style="padding-top:20px;">
@@ -468,7 +468,7 @@
             <input type="email" id="rec-email" placeholder="Usuario/Correo a recuperar">
             <textarea id="rec-code" placeholder="Pega tu frase de 12 palabras o tu Token único"
                 style="height:80px;"></textarea>
-            <button class="g-btn-main" onclick="executeRecovery()">VALIDAR AUTENTICIDAD Y RESETEAR</button>
+            <button class="g-btn-main" onclick="recoverAccount()">RECUPERAR CUENTA</button>
             <button class="g-btn-close" onclick="closeModal()">CANCELAR</button>
         </div>
     </div>

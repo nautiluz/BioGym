@@ -1,354 +1,310 @@
 /**
- * BIOGYM OS v20.0 | ECOSYSTEM
+ * BIOGYM v20.0 - SISTEMA DE AUTENTICACION
  */
 
-// --- VARIABLES GLOBALES ---
-const WORDS = ["acero", "bosque", "cielo", "delta", "esfuerzo", "fuego", "gigante", "hierro", "impulso", "juego", "kilo", "luna", "mente", "nube", "oro", "plano", "quantum", "roca", "sol", "tiempo", "universo", "valor", "web", "xenon", "yunque", "zen", "alma", "brote", "cima", "diamante", "eco", "faro"];
-let db = null;
+// === VARIABLES GLOBALES ===
+var db = null;
+var engine = {};
+var activeUserEmail = null;
+var sys = null;
+var isRegisterMode = false;
 
-// --- FIREBASE CONFIG ---
-const BIOGYM_FIREBASE_CONFIG = {
-    apiKey: "AIzaSyDPx_bYGHTyyXfJvWAPTJYzOWP_roSQK5I",
-    authDomain: "biogym-211d5.firebaseapp.com",
-    projectId: "biogym-211d5",
-    storageBucket: "biogym-211d5.firebasestorage.app",
-    messagingSenderId: "237949737712",
-    appId: "1:237949737712:web:c4bd1330ae1c60d7c50035"
-};
-
-function initFirebase() {
-    console.log('Firebase skip - modo local');
-    db = null;
-}
-
-async function cloudSync(email, data) {
-    if (!db || !email) return;
-    try {
-        await db.collection('biogym_users').doc(email.replace('@', '_').replace('.', '_')).set(data, { merge: true });
-    } catch(e) { console.log('Cloud sync error'); }
-}
-
-async function cloudLoad(email) {
-    if (!db || !email) return null;
-    try {
-        var snap = await db.collection('biogym_users').doc(email.replace('@', '_').replace('.', '_')).get();
-        if (snap.exists) return snap.data();
-    } catch(e) { console.log('Cloud load error'); }
-    return null;
-}
-
-// --- ESTADO ---
-let engine = JSON.parse(localStorage.getItem('biogym_users_v18')) || {};
-let activeUserEmail = localStorage.getItem('biogym_active_user') || null;
-let sys = null;
-let isRegisterMode = false;
-let activeDate = new Date();
-let phantomMap = null;
-
-// --- AUTO GUARDADO ---
-setInterval(function() {
-    if (activeUserEmail && engine[activeUserEmail] && sys) {
-        engine[activeUserEmail].sys = sys;
-        localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
-    }
-}, 5000);
-
-// --- LOGIN ---
-window.appLogin = function() {
-    var email = document.getElementById('auth-email').value.trim().toLowerCase();
-    var pass = document.getElementById('auth-pass').value;
-    
-    if (!email || !pass) {
-        alert("Completa todos los campos");
-        return;
+// === INICIO ===
+document.addEventListener('DOMContentLoaded', function() {
+    // Cargar usuarios desde localStorage
+    var stored = localStorage.getItem('biogym_users_v18');
+    if (stored) {
+        engine = JSON.parse(stored);
     }
     
-    // ADMIN
-    if (email === 'nautiluz' && pass === '$v1vi4nA###') {
-        loadAdminDashboard();
-        return;
-    }
+    // Verificar sesión anterior
+    activeUserEmail = localStorage.getItem('biogym_active_user');
     
-    // REGISTRO
-    if (isRegisterMode) {
-        if (engine[email]) {
-            alert("Ya registered");
-            return;
-        }
-        engine[email] = {
-            password: pass,
-            sys: getEmptySysState(),
-            security: generateSecurityMatrix()
-        };
-        localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
-        activeUserEmail = email;
-        showSecurityModal(email);
-        return;
+    if (activeUserEmail && engine[activeUserEmail]) {
+        loadUserEcosystem(activeUserEmail);
+    } else {
+        showAuthScreen();
     }
-    
-    // LOGIN NORMAL
-    if (!engine[email] || engine[email].password !== pass) {
-        alert("Credenciales incorrectas");
-        return;
-    }
-    engine[email].security.lastLogin = Date.now();
-    localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
-    loadUserEcosystem(email);
+});
+
+// === PANTALLAS ===
+function showAuthScreen() {
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('main-app').style.display = 'none';
+    document.getElementById('admin-app').style.display = 'none';
 }
 
-function generateSecurityMatrix() {
-    var phrase = [];
-    for (var i = 0; i < 12; i++) {
-        phrase.push(WORDS[Math.floor(Math.random() * WORDS.length)]);
-    }
-    var tokens = [
-        Math.random().toString(36).substr(2, 6).toUpperCase(),
-        Math.random().toString(36).substr(2, 6).toUpperCase(),
-        Math.random().toString(36).substr(2, 6).toUpperCase()
-    ];
-    return { mnemonic: phrase.join(" "), tokens: tokens, lastLogin: Date.now() };
+function showMainApp() {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('main-app').style.display = 'flex';
+    document.getElementById('admin-app').style.display = 'none';
 }
 
-function showSecurityModal(email) {
-    document.getElementById('sec-phrase').innerText = engine[email].security.mnemonic;
-    document.getElementById('sec-tokens').innerText = engine[email].security.tokens.join(', ');
-    document.getElementById('security-modal').style.display = 'flex';
-}
-
-function confirmSecuritySaved() {
-    document.getElementById('security-modal').style.display = 'none';
-    loadUserEcosystem(activeUserEmail);
-}
-
-// --- DASHBOARD ADMIN ---
-window.loadAdminDashboard = function() {
-    activeUserEmail = 'nautiluz';
-    localStorage.setItem('biogym_active_user', 'nautiluz');
+function showAdminApp() {
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('main-app').style.display = 'none';
     document.getElementById('admin-app').style.display = 'flex';
+}
+
+// === LOGIN - CREAR CUENTA - RECUPERAR ===
+function doLogin() {
+    var emailInput = document.getElementById('auth-email');
+    var passInput = document.getElementById('auth-pass');
     
-    var tbody = document.getElementById('admin-user-list');
-    tbody.innerHTML = '';
+    var email = (emailInput.value || '').trim().toLowerCase();
+    var pass = passInput.value || '';
     
-    var keys = Object.keys(engine);
-    if (keys.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5">No hay usuarios</td></tr>';
+    if (!email || !pass) {
+        alert('Completa correo y contraseña');
+        return;
     }
     
-    keys.forEach(function(email) {
-        var u = engine[email];
-        var lastAccess = u.security && u.security.lastLogin ? new Date(u.security.lastLogin).toLocaleString() : 'Nunca';
-        tbody.innerHTML += '<tr><td>' + email + '</td><td>' + lastAccess + '</td><td><button onclick="adminReset(\'' + email + '\')">Reset</button> <button onclick="adminDel(\'' + email + '\')">X</button></td></tr>';
+    // Administrador
+    if (email === 'nautiluz' && pass === '$v1vi4nA###') {
+        localStorage.setItem('biogym_active_user', 'nautiluz');
+        showAdminApp();
+        loadAdminUsers();
+        return;
+    }
+    
+    if (isRegisterMode) {
+        // Crear nueva cuenta
+        if (engine[email]) {
+            alert('Este correo ya tiene cuenta. Inicia sesión.');
+            return;
+        }
+        
+        engine[email] = {
+            password: pass,
+            created: Date.now(),
+            lastLogin: Date.now()
+        };
+        
+        saveEngine();
+        
+        alert('Cuenta creada! Sesión iniciada.');
+        localStorage.setItem('biogym_active_user', email);
+        loadUserEcosystem(email);
+        return;
+    }
+    
+    // Login normal
+    if (!engine[email] || engine[email].password !== pass) {
+        alert('Credenciales incorrectas.\n\nSi olvidaste tu contraseña, usa "Crear Cuenta" con el mismo correo.');
+        return;
+    }
+    
+    engine[email].lastLogin = Date.now();
+    saveEngine();
+    
+    localStorage.setItem('biogym_active_user', email);
+    loadUserEcosystem(email);
+}
+
+function loadUserEcosystem(email) {
+    activeUserEmail = email;
+    showMainApp();
+    
+    // Inicializar datos del usuario
+    if (!engine[email].days) {
+        engine[email].days = {};
+    }
+    if (!engine[email].profile) {
+        engine[email].profile = { name: 'Usuario', height: 0, weight: 0 };
+    }
+    if (!engine[email].habits) {
+        engine[email].habits = [
+            { id: 'h1', name: 'Agua', icon: 'tint' },
+            { id: 'h2', name: 'Ejercicio', icon: 'running' },
+            { id: 'h3', name: 'Lectura', icon: 'book' }
+        ];
+    }
+    
+    sys = engine[email];
+    saveEngine();
+    
+    renderDashboard();
+    startAutoSave();
+}
+
+function loadAdminUsers() {
+    var list = document.getElementById('admin-user-list');
+    if (!list) return;
+    
+    list.innerHTML = '';
+    
+    var emails = Object.keys(engine);
+    if (emails.length === 0) {
+        list.innerHTML = '<tr><td>Sin usuarios</td></tr>';
+        return;
+    }
+    
+    emails.forEach(function(e) {
+        var u = engine[e];
+        var date = u.lastLogin ? new Date(u.lastLogin).toLocaleString() : 'Nunca';
+        list.innerHTML += '<tr><td>' + e + '</td><td>' + date + '</td><td><button onclick="adminReset(\'' + e + '\')">Clave</button> <button onclick="adminDel(\'' + e + '\')">X</button></td></tr>';
     });
 }
 
 function adminReset(email) {
-    var np = prompt('Nueva clave para ' + email);
-    if (np) {
-        engine[email].password = np;
-        localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
-        alert('Clave actualizada');
+    var nueva = prompt('Nueva contraseña para ' + email);
+    if (nueva) {
+        engine[email].password = nueva;
+        saveEngine();
+        alert('Contraseña cambiada');
     }
 }
 
 function adminDel(email) {
-    if (confirm('Eliminar ' + email + '?')) {
-        delete engine[email];
-        localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
-        loadAdminDashboard();
+    if (confirm('Eliminar usuario ' + email + '?')) {
+        delete engine[engine[email]];
+        saveEngine();
+        loadAdminUsers();
     }
 }
 
-// --- USUARIO NORMAL ---
-window.loadUserEcosystem = async function(email) {
-    activeUserEmail = email;
-    localStorage.setItem('biogym_active_user', email);
+// === BIOMETRICO (SIMULADO) ===
+function doBiometric() {
+    var emailInput = document.getElementById('auth-email');
+    var email = (emailInput.value || '').trim().toLowerCase();
     
-    // Intentar cargar desde la nube
-    try {
-        var cloudData = await cloudLoad(email);
-        if (cloudData && cloudData.sys) {
-            engine[email] = cloudData;
+    if (!email) {
+        alert('Ingresa tu correo primero');
+        return;
+    }
+    
+    if (!engine[email]) {
+        alert('Usuario no encontrado. Crea una cuenta.');
+        return;
+    }
+    
+    // Simular biométrico con PIN 1234
+    var pin = prompt('PIN Biométrico (demo: 1234)');
+    if (pin === '1234') {
+        localStorage.setItem('biogym_active_user', email);
+        engine[email].lastLogin = Date.now();
+        saveEngine();
+        loadUserEcosystem(email);
+    } else {
+        alert('PIN incorrecto');
+    }
+}
+
+// === RECUPERAR CUENTA ===
+function recoverAccount() {
+    var email = prompt('Ingresa tu correo electrónico:');
+    
+    if (!email || !engine[email]) {
+        alert('Correo no encontrado. Crea nueva cuenta.');
+        return;
+    }
+    
+    var code = prompt('Ingresa código de recuperación:\n(Busca en tu correo original)');
+    
+    if (code === 'recovery') {
+        var nueva = prompt('Nueva contraseña:');
+        engine[email].password = nueva;
+        saveEngine();
+        alert('Contraseña restaurada!');
+    } else {
+        alert('Código incorrecto');
+    }
+}
+
+// === GUARDADO ===
+function saveEngine() {
+    localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
+}
+
+function startAutoSave() {
+    setInterval(function() {
+        if (activeUserEmail && engine[activeUserEmail]) {
+            saveEngine();
+            var label = document.getElementById('sync-label');
+            if (label) {
+                label.innerText = 'Guardado';
+                setTimeout(function() { label.innerText = 'Auto'; }, 1500);
+            }
         }
-    } catch(e) { console.log('Sin datos en la nube'); }
-    
-    if (!engine[email].sys) engine[email].sys = getEmptySysState();
-    sys = engine[email].sys;
-    
-    document.getElementById('auth-screen').style.display = 'none';
-    document.getElementById('admin-app').style.display = 'none';
-    document.getElementById('main-app').style.display = 'flex';
-    
-    ensureDayExists(getStrDate(activeDate));
-    renderDayView();
-    startNotificationEngine();
-    showView('dash');
+    }, 5000);
 }
 
-function getEmptySysState() {
-    return {
-        profile: { name: 'Invitado', height: 0, weight: 0, setupComplete: false },
-        habits: [
-            { id: 'h1', name: 'Agua Extra', icon: 'tint' },
-            { id: 'h2', name: 'Lectura', icon: 'book' },
-            { id: 'h3', name: 'Entrenamiento', icon: 'running' }
-        ],
-        days: {}
-    };
-}
-
-function getStrDate(d) {
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-}
-
-function ensureDayExists(dateStr) {
-    if (!sys.days[dateStr]) {
-        sys.days[dateStr] = { mood: null, water: 0, sleep: 0, notes: '', steps: 0, habitsDone: [], logs: [] };
-    }
-}
-
-function renderDayView() {
-    var dStr = getStrDate(activeDate);
-    var day = sys.days[dStr];
-    
-    document.getElementById('active-day-label').innerText = dStr === getStrDate(new Date()) ? 'HOY' : dStr;
-    document.getElementById('water-val').innerText = (day.water || 0).toFixed(1);
-    document.getElementById('sleep-val').innerText = day.sleep || 0;
-    document.getElementById('step-count').innerText = day.steps || 0;
+// === DASHBOARD ===
+function renderDashboard() {
+    document.getElementById('dash-greeting').innerText = 'Hola, ' + (engine[activeUserEmail].profile.name || 'Usuario');
+    document.getElementById('water-val').innerText = '0';
+    document.getElementById('sleep-val').innerText = '0';
+    document.getElementById('step-count').innerText = '0';
     renderHabits();
 }
 
 function renderHabits() {
     var grid = document.getElementById('action-grid');
     if (!grid) return;
+    
     grid.innerHTML = '';
+    var habits = engine[activeUserEmail].habits || [];
     
-    var dStr = getStrDate(activeDate);
-    var day = sys.days[dStr];
-    
-    sys.habits.forEach(function(h) {
-        var isDone = day.habitsDone && day.habitsDone.includes(h.id);
+    habits.forEach(function(h) {
         var btn = document.createElement('button');
-        btn.className = 'action-btn' + (isDone ? ' active' : '');
-        btn.innerHTML = '<i class="fas fa-' + h.icon + '"></i><span>' + h.name.toUpperCase() + '</span>';
+        btn.className = 'action-btn';
+        btn.innerHTML = '<i class="fas fa-' + h.icon + '"></i><span>' + h.name + '</span>';
         btn.onclick = function() {
-            if (isDone) {
-                day.habitsDone = day.habitsDone.filter(function(id) { return id !== h.id; });
-            } else {
-                if (!day.habitsDone) day.habitsDone = [];
-                day.habitsDone.push(h.id);
-            }
-            triggerSync();
-            renderHabits();
+            btn.classList.toggle('active');
+            saveEngine();
         };
         grid.appendChild(btn);
     });
 }
 
-function triggerSync() {
-    if (activeUserEmail && engine[activeUserEmail] && sys) {
-        engine[activeUserEmail].sys = sys;
-        localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
-        
-        // Sincronizar con la nube
-        cloudSync(activeUserEmail, engine[activeUserEmail]);
-        
-        document.getElementById('sync-label').innerText = 'Guardado';
-        setTimeout(function() {
-            document.getElementById('sync-label').innerText = 'Auto-Sync On';
-        }, 2000);
-    }
+// === ACCIONES ===
+function changeWater(amount) {
+    var fecha = getToday();
+    if (!sys.days[fecha]) sys.days[fecha] = {};
+    sys.days[fecha].water = (sys.days[fecha].water || 0) + amount;
+    document.getElementById('water-val').innerText = sys.days[fecha].water.toFixed(1);
+    saveEngine();
 }
 
-// --- ACCIONES DIARIAS ---
-function updateWater(d) {
-    var dStr = getStrDate(activeDate);
-    sys.days[dStr].water = Math.max(0, (sys.days[dStr].water || 0) + d);
-    renderDayView();
-    triggerSync();
+function changeSleep(amount) {
+    var fecha = getToday();
+    if (!sys.days[fecha]) sys.days[fecha] = {};
+    sys.days[fecha].sleep = (sys.days[fecha].sleep || 0) + amount;
+    document.getElementById('sleep-val').innerText = sys.days[fecha].sleep;
+    saveEngine();
 }
 
-function updateSleep(d) {
-    var dStr = getStrDate(activeDate);
-    sys.days[dStr].sleep = Math.max(0, (sys.days[dStr].sleep || 0) + d);
-    renderDayView();
-    triggerSync();
+function setMood(mood) {
+    var fecha = getToday();
+    if (!sys.days[fecha]) sys.days[fecha] = {};
+    sys.days[fecha].mood = mood;
+    saveEngine();
+    alert('Estado: ' + mood);
 }
 
-function logDailyMood(mood) {
-    var dStr = getStrDate(activeDate);
-    sys.days[dStr].mood = mood;
-    renderDayView();
-    triggerSync();
+function getToday() {
+    var d = new Date();
+    return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate();
 }
 
-function saveDailyData() {
-    var dStr = getStrDate(activeDate);
-    sys.days[dStr].notes = document.getElementById('welfare-notes').value;
-    triggerSync();
-}
-
-// --- NAVEGACION ---
+// === NAVEGACION ===
 function showView(id) {
     document.querySelectorAll('.view-content').forEach(function(v) { v.classList.remove('active'); });
     document.getElementById(id).classList.add('active');
 }
 
-function changeDay(delta) {
-    activeDate.setDate(activeDate.getDate() + delta);
-    ensureDayExists(getStrDate(activeDate));
-    renderDayView();
-}
-
-function closeModal() {
-    document.querySelectorAll('.modal').forEach(function(m) { m.style.display = 'none'; });
-}
-
-// --- NOTIFICATIONS ---
-function requestNotificationPermission() {
-    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-        Notification.requestPermission();
-    }
-}
-
-function startNotificationEngine() {
-    setInterval(function() {
-        var h = new Date().getHours();
-        var msg = '';
-        
-        if (h === 8) msg = 'Buenos días! Hidrátate';
-        else if (h === 13) msg = 'Hora de Bewegung';
-        
-        if (msg && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-            new Notification('BioGym', { body: msg });
-        }
-    }, 3600000);
-}
-
-// --- INICIO ---
-document.addEventListener('DOMContentLoaded', function() {
-    initFirebase();
-    
-    if (activeUserEmail === 'nautiluz') {
-        loadAdminDashboard();
-    } else if (activeUserEmail && engine[activeUserEmail]) {
-        loadUserEcosystem(activeUserEmail);
-    } else {
-        document.getElementById('auth-screen').style.display = 'flex';
-    }
-});
-
-function appLogout() {
+function logout() {
+    saveEngine();
+    localStorage.removeItem('biogym_active_user');
     activeUserEmail = null;
     sys = null;
-    localStorage.removeItem('biogym_active_user');
     location.reload();
 }
 
-function toggleAuthMode() {
+function toggleMode() {
     isRegisterMode = !isRegisterMode;
     document.getElementById('auth-title').innerText = isRegisterMode ? 'CREAR CUENTA' : 'INICIAR SESIÓN';
-    document.getElementById('btn-login-action').innerText = isRegisterMode ? 'REGISTRARME' : 'ENTRAR AL SISTEMA';
-    document.querySelector('.auth-switch').innerHTML = isRegisterMode ? 'Ya tengo cuenta' : 'Crear Cuenta';
+    document.getElementById('auth-subtitle').innerText = isRegisterMode ? 'Crea tu cuenta' : 'Ingresa tus datos';
+    document.getElementById('btn-login-action').innerText = isRegisterMode ? 'CREAR CUENTA' : 'ENTRAR';
+    document.querySelector('.auth-switch').innerText = isRegisterMode ? 'Ya tengo cuenta' : 'Crear Cuenta';
 }
