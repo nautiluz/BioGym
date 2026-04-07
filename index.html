@@ -18,9 +18,9 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <!-- Firebase v9 Compat SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore-compat.js"></script>
-    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-app-compat.js" onerror="console.log('Firebase error')"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore-compat.js" onerror="console.log('Firestore error')"></script>
+    <script>window.onerror = function(msg){alert('JS Error: '+msg);return false;};</script>
 </head>
 
 <body class="light-mode">
@@ -38,7 +38,7 @@
             <input type="email" id="auth-email" placeholder="Correo electrónico o Admin">
             <input type="password" id="auth-pass" placeholder="Contraseña">
 
-            <button class="auth-btn" id="btn-login-action" onclick="appLogin()">ENTRAR AL SISTEMA</button>
+            <button class="auth-btn" id="btn-login-action" onclick="alert('BOTON OK - entrando'); appLogin()">ENTRAR AL SISTEMA</button>
             <button class="auth-btn" id="btn-login-bio"
                 style="background:#555; display:flex; gap:10px; justify-content:center; align-items:center; margin-top:10px;"
                 onclick="triggerBiometricLogin()"><i class="fas fa-fingerprint"></i> INGRESO BIOMÉTRICO

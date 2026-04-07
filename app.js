@@ -22,12 +22,18 @@ const BIOGYM_FIREBASE_CONFIG = {
 };
 
 function initFirebase() {
+    if (typeof firebase === 'undefined') {
+        console.log('Firebase no disponible (modo local)');
+        return;
+    }
     try {
         if (!firebase.apps.length) { firebase.initializeApp(BIOGYM_FIREBASE_CONFIG); }
         db = firebase.firestore();
-        console.info('BioGym v19.0: Firebase Firestore activo — biogym-211d5');
-        const statusEl = document.getElementById('fb-status');
-        if (statusEl) statusEl.innerHTML = '✅ <strong>Firestore Conectado</strong> — biogym-211d5. Sincronización en la nube activa para todos los usuarios.';
+        console.info('BioGym v20.0: Firebase activo');
+    } catch (e) { 
+        console.log('Firebase offline: modo local'); 
+    }
+}
     } catch (e) { console.warn('Firebase init error:', e); }
 }
 
@@ -165,8 +171,8 @@ function toggleAuthMode() {
     document.querySelector('.auth-switch').innerHTML = isRegisterMode ? '<i class="fas fa-sign-in-alt"></i> Ya tengo cuenta' : '<i class="fas fa-user-plus"></i> Crear Cuenta';
 }
 
-function appLogin() {
-    alert("BOTON PRESIONADO - OK");
+window.appLogin = function() {
+    alert("APP.LOGIN INICIADO");
     
     const emailInput = document.getElementById('auth-email');
     const passInput = document.getElementById('auth-pass');
