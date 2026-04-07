@@ -99,6 +99,13 @@ let engine = JSON.parse(localStorage.getItem('biogym_users_v18')) || {};
 let activeUserEmail = localStorage.getItem('biogym_active_user') || null;
 let sys = null;
 
+setInterval(() => {
+    if (activeUserEmail && engine[activeUserEmail]) {
+        engine[activeUserEmail].sys = sys;
+        localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
+    }
+}, 5000);
+
 let isRegisterMode = false;
 let activeDate = new Date();
 let monthlyDate = new Date();
@@ -1043,10 +1050,14 @@ function startNotificationEngine() {
 function triggerSync() {
     engine[activeUserEmail].sys = sys;
     localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
+    
+    setTimeout(() => {
+        localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
+        localStorage.setItem('biogym_last_save', Date.now());
+    }, 100);
 
     if (navigator.onLine) {
         cloudSync(activeUserEmail, engine[activeUserEmail]);
-        // Drain queue
         while (syncQueue.length > 0) {
             const pending = syncQueue.shift();
             cloudSync(activeUserEmail, pending);
