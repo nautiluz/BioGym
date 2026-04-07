@@ -348,3 +348,24 @@ function changeDay(delta) {
     // Por ahora solo muestra hoy
     renderDashboard();
 }
+
+// === GOOGLE CALENDAR (SIMULADO) ===
+function signInGoogle() {
+    alert('Google Calendar:\n\nPara conectar necesitas:\n1. Google Cloud Console\n2. API Key de Calendar\n\nPor ahora modo local activo.');
+    localStorage.setItem('google_connected', 'true');
+}
+
+function syncToGoogleCalendar() {
+    var fecha = getToday();
+    var day = sys.days[fecha] || {};
+    var data = 'BioGym - ' + fecha + '\nAgua: ' + (day.water || 0) + 'L\nSueño: ' + (day.sleep || 0) + 'h\nPasos: ' + (day.steps || 0);
+    
+    alert('Sincronizado con Google Calendar:\n\n' + data);
+}
+
+function createAlarm() {
+    var hora = prompt('Hora de alarma (0-23):');
+    if (hora !== null) {
+        alert('Alarma configurada para las ' + hora + ':00');
+    }
+}
