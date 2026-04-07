@@ -166,28 +166,32 @@ function toggleAuthMode() {
 }
 
 function appLogin() {
+    alert("BOTON PRESIONADO - OK");
+    
     const emailInput = document.getElementById('auth-email');
     const passInput = document.getElementById('auth-pass');
     
+    alert("Email input existe: " + !!emailInput);
+    
     if (!emailInput || !passInput) {
-        alert("Error: No se encontraron los campos de entrada.");
+        alert("Error: Campos no existen");
         return;
     }
     
     const email = emailInput.value.trim().toLowerCase();
     const pass = passInput.value;
     
-    console.log("Intentando login con:", email);
     alert("Login: " + email);
     
     if (email === 'nautiluz' && pass === '$v1vi4nA###') {
-        alert("Accediendo como admin...");
+        alert("Admin correcto!");
         loadAdminDashboard();
         return;
     }
 
     if (isRegisterMode) {
-        if (engine[email]) { alert("El correo ya está registrado."); return; }
+        alert("Registro");
+        if (engine[email]) { alert("Ya existe"); return; }
         engine[email] = { password: pass, sys: getEmptySysState(), security: generateSecurityMatrix() };
         localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
         activeUserEmail = email;
@@ -195,8 +199,9 @@ function appLogin() {
         document.getElementById('sec-tokens').innerText = engine[email].security.tokens.join(', ');
         document.getElementById('security-modal').style.display = 'flex';
     } else {
+        alert("-login normal");
         if (!engine[email] || engine[email].password !== pass) { 
-            alert("Credenciales incorrectas. Crea una cuenta primero."); 
+            alert("No existe usuario. Crea cuenta."); 
             return; 
         }
         engine[email].security.lastLogin = Date.now();
