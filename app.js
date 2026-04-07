@@ -21,8 +21,25 @@ function initFirebase() {
         try {
             if (!firebase.apps.length) firebase.initializeApp(BIOGYM_FIREBASE_CONFIG);
             db = firebase.firestore();
+            console.log('Firebase listo');
         } catch(e) { console.log('Firebase offline'); }
     }
+}
+
+async function cloudSync(email, data) {
+    if (!db || !email) return;
+    try {
+        await db.collection('biogym_users').doc(email.replace('@', '_').replace('.', '_')).set(data, { merge: true });
+    } catch(e) { console.log('Cloud sync error'); }
+}
+
+async function cloudLoad(email) {
+    if (!db || !email) return null;
+    try {
+        var snap = await db.collection('biogym_users').doc(email.replace('@', '_').replace('.', '_')).get();
+        if (snap.exists) return snap.data();
+    } catch(e) { console.log('Cloud load error'); }
+    return null;
 }
 
 // --- ESTADO ---
@@ -149,9 +166,17 @@ function adminDel(email) {
 }
 
 // --- USUARIO NORMAL ---
-function loadUserEcosystem(email) {
+async function loadUserEcosystem(email) {
     activeUserEmail = email;
     localStorage.setItem('biogym_active_user', email);
+    
+    // Intentar cargar desde la nube
+    try {
+        var cloudData = await cloudLoad(email);
+        if (cloudData && cloudData.sys) {
+            engine[email] = cloudData;
+        }
+    } catch(e) { console.log('Sin datos en la nube'); }
     
     if (!engine[email].sys) engine[email].sys = getEmptySysState();
     sys = engine[email].sys;
@@ -227,14 +252,19 @@ function renderHabits() {
 }
 
 function triggerSync() {
-    if (activeUserEmail && engine[activeUserEmail]) {
+    if (activeUserEmail && engine[activeUserEmail] && sys) {
         engine[activeUserEmail].sys = sys;
         localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
+        
+        // Sincronizar con la nube
+        cloudSync(activeUserEmail, engine[activeUserEmail]);
+        
         document.getElementById('sync-label').innerText = 'Guardado';
         setTimeout(function() {
             document.getElementById('sync-label').innerText = 'Auto-Sync On';
         }, 2000);
     }
+}
 }
 
 // --- ACCIONES DIARIAS ---
