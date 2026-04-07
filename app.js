@@ -109,6 +109,9 @@ function logout() {
     location.reload();
 }
 
+// Alias
+function appLogout() { logout(); }
+
 // === USUARIO ===
 function loadUserEcosystem(email) {
     activeUserEmail = email;
@@ -250,9 +253,20 @@ function changeMonthlyView(delta) {
 // === PERFIL ===
 function openProfilePanel() {
     var p = engine[activeUserEmail].profile || {};
+    
     document.getElementById('user-name-input').value = p.name || '';
     document.getElementById('user-height').value = p.height || '';
     document.getElementById('user-weight').value = p.weight || '';
+    document.getElementById('user-sex').value = p.sex || 'none';
+    document.getElementById('user-activity').value = p.activity || 'none';
+    
+    if (p.weight && p.height) {
+        var bmi = (p.weight / (p.height * p.height)).toFixed(1);
+        document.getElementById('user-bmi').innerText = 'IMC: ' + bmi;
+    } else {
+        document.getElementById('user-bmi').innerText = '--';
+    }
+    
     document.getElementById('profile-modal').style.display = 'flex';
 }
 
@@ -260,16 +274,41 @@ function updateProfile() {
     var name = document.getElementById('user-name-input').value;
     var height = document.getElementById('user-height').value;
     var weight = document.getElementById('user-weight').value;
-    engine[activeUserEmail].profile = { name: name, height: height, weight: weight };
+    
+    engine[activeUserEmail].profile = { 
+        name: name, 
+        height: height, 
+        weight: weight 
+    };
+    
     saveEngine();
     renderDashboard();
-    closeModal();
-    alert('Perfil actualizado!');
+    
+    // Mostrar confirmacion sin cerrar modal
+    var m = document.getElementById('user-bmi');
+    if (m) {
+        var bmi = weight && height ? (weight / (height * height)).toFixed(1) : '--';
+        m.innerText = 'IMC: ' + bmi;
+    }
+    
+    alert('✅ Perfil guardado!');
 }
 
 function updateProfileManual() { updateProfile(); }
-function closeModal() {
-    document.querySelectorAll('.modal').forEach(function(m) { m.style.display = 'none'; });
+
+function closeModal(id) {
+    // Si se pasa ID, cerrar solo ese modal
+    if (id) {
+        document.getElementById(id).style.display = 'none';
+    } else {
+        // Cerrar todos los modales
+        document.querySelectorAll('.modal').forEach(function(m) { m.style.display = 'none'; });
+    }
+}
+
+// Cerrar modal del perfil especifico
+function closeProfileModal() {
+    document.getElementById('profile-modal').style.display = 'none';
 }
 
 // === NAVEGACION ===
