@@ -125,6 +125,7 @@ function loadUserEcosystem(email) {
     sys = engine[email];
     saveEngine();
     renderDashboard();
+    renderMonthlyCalendar(new Date().getFullYear(), new Date().getMonth());
     startAutoSave();
 }
 
@@ -336,7 +337,92 @@ function changeDay(delta) {
 }
 
 function changeMonthlyView(delta) {
+    var hoy = new Date();
+    var mes = hoy.getMonth() + delta;
+    hoy.setMonth(mes);
+    renderMonthlyCalendar(hoy.getFullYear(), hoy.getMonth());
+}
+
+function renderMonthlyCalendar(anio, mes) {
+    var titulo = document.getElementById('monthly-title');
+    var grid = document.getElementById('monthly-calendar-grid');
+    
+    if (!titulo || !grid) return;
+    
+    var meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    titulo.innerText = meses[mes] + ' ' + anio;
+    
+    var primerDia = new Date(anio, mes, 1).getDay();
+    var diasMes = new Date(anio, mes + 1, 0).getDate();
+    
+    var html = '';
+    var diaSemana = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+    
+    // Encabezados
+    diaSemana.forEach(function(d) {
+        html += '<div style="font-weight:bold; font-size:0.7rem; text-align:center; padding:5px;">' + d + '</div>';
+    });
+    
+    // Días vacíos
+    for (var i = 0; i < primerDia; i++) {
+        html += '<div></div>';
+    }
+    
+    // Días del mes
+    var fechaActual = new Date();
+    
+    for (var dia = 1; dia <= diasMes; dia++) {
+        var fechaStr = anio + '-' + String(mes+1).padStart(2,'0') + '-' + String(dia).padStart(2,'0');
+        var esHoy = (fechaActual.getFullYear() === anio && fechaActual.getMonth() === mes && fechaActual.getDate() === dia);
+        var tieneDatos = sys && sys.days && sys.days[fechaStr];
+        
+        var color = '#f5f5f5';
+        if (tieneDatos) {
+            if (tieneDatos.mood === 'Feliz' || tieneDatos.mood === 'Happy') color = '#C8E6C9';
+            else if (tieneDatos.mood === 'Triste' || tieneDatos.mood === 'Sad') color = '#FFCDD2';
+            else if (tieneDatos.water && tieneDatos.water >= 2) color = '#BBDEFB';
+        }
+        
+        var estilo = esHoy ? 'border:2px solid #4285F4;' : '';
+        
+        html += '<div class="cal-day" style="' + estilo + 'background:' + color + ';" onclick="seleccionarDia(\'' + fechaStr + '\')">' + dia + '</div>';
+    }
+    
+    grid.innerHTML = html;
+    
+    // Reporte IA del mes
+    var reporte = document.getElementById('monthly-ai-report');
+    if (reporte) {
+        var diasRegistrados = 0;
+        var aguaTotal = 0;
+        var suenoTotal = 0;
+        
+        if (sys && sys.days) {
+            Object.keys(sys.days).forEach(function(f) {
+                var d = sys.days[f];
+                if (f.startsWith(anio + '-' + String(mes+1).padStart(2,'0'))) {
+                    diasRegistrados++;
+                    aguaTotal += d.water || 0;
+                    suenoTotal += d.sleep || 0;
+                }
+            });
+        }
+        
+        var htmlReporte = '<div style="padding:10px; background:rgba(66,133,244,0.1); border-radius:8px;">';
+        htmlReporte += '<strong>Resumen ' + meses[mes] + ':</strong><br>';
+        htmlReporte += 'Días registrados: ' + diasRegistrados + '<br>';
+        htmlReporte += 'Agua promedio: ' + (diasRegistrados ? (aguaTotal/diasRegistrados).toFixed(1) : 0) + ' L<br>';
+        htmlReporte += 'Sueño promedio: ' + (diasRegistrados ? (suenoTotal/diasRegistrados).toFixed(1) : 0) + ' h';
+        htmlReporte += '</div>';
+        reporte.innerHTML = htmlReporte;
+    }
+}
+
+function seleccionarDia(fechaStr) {
+    var partes = fechaStr.split('-');
+    activeDate = new Date(partes[0], partes[1]-1, partes[2]);
     renderDashboard();
+    showView('dash');
 }
 
 // === PERFIL ===
