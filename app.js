@@ -566,13 +566,48 @@ function deleteHabit() {
     }
 }
 
+var editHabitsMode = false;
+
 function toggleEditHabits() {
+    editHabitsMode = !editHabitsMode;
     var grid = $('action-grid');
     if (!grid) return;
     var btns = grid.querySelectorAll('.action-btn');
     btns.forEach(function(b){ 
-        b.style.border = b.style.border === '2px solid red' ? '' : '2px solid red'; 
-        b.style.animation = b.style.animation ? '' : 'tremble 0.3s infinite';
+        b.style.border = editHabitsMode ? '2px solid red' : ''; 
+        b.style.animation = editHabitsMode ? 'tremble 0.3s infinite' : '';
+    });
+    if (editHabitsMode) alert('Modo edición: haz clic en un hábito para EDITAR o eliminarlo');
+}
+
+function renderHabits() {
+    var grid = $('action-grid');
+    if (!grid) return;
+    
+    grid.innerHTML = '';
+    var habits = engine[activeUserEmail].habits || [];
+    var fecha = getToday();
+    var day = engine[activeUserEmail].days[fecha] || {};
+    var done = day.habitsDone || [];
+    
+    habits.forEach(function(h) {
+        var btn = document.createElement('button');
+        btn.className = 'action-btn' + (done.includes(h.id) ? ' active' : '');
+        btn.innerHTML = '<i class="fas fa-' + h.icon + '"></i><span>' + h.name + '</span>';
+        btn.onclick = function() {
+            if (editHabitsMode) {
+                openHabitModal(h.id);
+            } else {
+                if (!engine[activeUserEmail].days[fecha]) engine[activeUserEmail].days[fecha] = {};
+                if (!engine[activeUserEmail].days[fecha].habitsDone) engine[activeUserEmail].days[fecha].habitsDone = [];
+                var d = engine[activeUserEmail].days[fecha].habitsDone;
+                if (d.includes(h.id)) engine[activeUserEmail].days[fecha].habitsDone = d.filter(function(x) { return x !== h.id; });
+                else d.push(h.id);
+                saveEngine();
+                renderHabits();
+            }
+        };
+        grid.appendChild(btn);
     });
 }
 function saveWeight() { var w=($('weight-input')||{}).value; if(w){engine[activeUserEmail].profile.weight=w; saveEngine(); alert('Peso: '+w);} }
