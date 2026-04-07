@@ -59,7 +59,7 @@ setInterval(function() {
 }, 5000);
 
 // --- LOGIN ---
-function appLogin() {
+window.appLogin = function() {
     var email = document.getElementById('auth-email').value.trim().toLowerCase();
     var pass = document.getElementById('auth-pass').value;
     
@@ -126,7 +126,7 @@ function confirmSecuritySaved() {
 }
 
 // --- DASHBOARD ADMIN ---
-function loadAdminDashboard() {
+window.loadAdminDashboard = function() {
     activeUserEmail = 'nautiluz';
     localStorage.setItem('biogym_active_user', 'nautiluz');
     document.getElementById('auth-screen').style.display = 'none';
@@ -166,7 +166,7 @@ function adminDel(email) {
 }
 
 // --- USUARIO NORMAL ---
-async function loadUserEcosystem(email) {
+window.loadUserEcosystem = async function(email) {
     activeUserEmail = email;
     localStorage.setItem('biogym_active_user', email);
     
