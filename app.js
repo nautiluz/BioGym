@@ -27,6 +27,9 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
         showAuthScreen();
     }
+    
+    // Aplicar modo oscuro automático
+    applyAutoDarkMode();
 });
 
 // === PANTALLAS ===
@@ -533,6 +536,132 @@ function changeUserPassword() {
         saveEngine();
         alert('Contrasena cambiada');
     }
+}
+
+// === EXPORTAR DATOS ===
+function exportData(format) {
+    var datos = engine[activeUserEmail];
+    var nombre = datos.profile ? datos.profile.name : 'usuario';
+    var fecha = new Date().toISOString().split('T')[0];
+    
+    if (format === 'json') {
+        var blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'biogym_' + nombre + '_' + fecha + '.json';
+        a.click();
+        alert('✅ Datos exportados en JSON');
+    } else {
+        // CSV
+        var csv = 'Fecha,Agua (L),Sueño (h),Pasos,Estado\n';
+        Object.keys(datos.days || {}).forEach(function(d) {
+            var day = datos.days[d];
+            csv += d + ',' + (day.water || 0) + ',' + (day.sleep || 0) + ',' + (day.steps || 0) + ',' + (day.mood || '') + '\n';
+        });
+        var blob = new Blob([csv], { type: 'text/csv' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'biogym_' + nombre + '_' + fecha + '.csv';
+        a.click();
+        alert('✅ Datos exportados en CSV');
+    }
+}
+
+// === COMANDOS DE VOZ ===
+var recognition = null;
+function startVoice() {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        alert('Tu navegador no soporta comandos de voz');
+        return;
+    }
+    
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.lang = 'es-ES';
+    recognition.continuous = true;
+    
+    recognition.onresult = function(event) {
+        var transcript = '';
+        for (var i = event.resultIndex; i < event.results.length; i++) {
+            transcript = event.results[i][0].transcript.toLowerCase();
+        }
+        
+        if (transcript.includes('agua') || transcript.includes('beber')) {
+            updateWater(0.5);
+            alert('💧 +0.5L registrado');
+        } else if (transcript.includes('pasos') || transcript.includes('caminar')) {
+            var pasos = prompt('Cuántos pasos?');
+            if (pasos) {
+                var fecha = getToday();
+                if (!sys.days[fecha]) sys.days[fecha] = {};
+                sys.days[fecha].steps = parseInt(pasos);
+                saveEngine();
+                document.getElementById('step-count').innerText = pasos;
+                alert('🏃 ' + pasos + ' pasos registrados');
+            }
+        } else if (transcript.includes('peso')) {
+            var peso = prompt('Peso actual?');
+            if (peso) {
+                engine[activeUserEmail].profile.weight = peso;
+                saveEngine();
+                alert('⚖️ Peso: ' + peso + ' kg');
+            }
+        } else {
+            alert('Comando no reconocido: ' + transcript);
+        }
+    };
+    
+    recognition.start();
+    alert('🎤 Escuchando... Di "agua", "pasos" o "peso"');
+}
+
+// === MODO OSCURO ===
+function toggleDarkMode() {
+    var body = document.body;
+    if (body.classList.contains('dark-mode')) {
+        body.classList.remove('dark-mode');
+        body.classList.add('light-mode');
+        localStorage.setItem('biogym_theme', 'light');
+    } else {
+        body.classList.remove('light-mode');
+        body.classList.add('dark-mode');
+        localStorage.setItem('biogym_theme', 'dark');
+    }
+}
+
+// Aplicar modo oscuro automáticamente según hora
+function applyAutoDarkMode() {
+    var hora = new Date().getHours();
+    var tema = localStorage.getItem('biogym_theme');
+    
+    if (tema) {
+        document.body.classList.remove('light-mode', 'dark-mode');
+        document.body.classList.add(tema + '-mode');
+    } else if (hora < 7 || hora > 20) {
+        document.body.classList.remove('light-mode');
+        document.body.classList.add('dark-mode');
+    }
+}
+
+// === WEB BLUETOOTH (Demo) ===
+function connectBluetooth() {
+    if (!navigator.bluetooth) {
+        alert('Tu navegador no soporta Bluetooth Web.\nUsa Chrome en computadora o Android.');
+        return;
+    }
+    
+    navigator.bluetooth.requestDevice({
+        filters: [{ services: ['heart_rate'] }]
+    })
+    .then(device => device.connect())
+    .then(gattServer => {
+        alert('✅ Dispositivo Bluetooth conectado');
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+    });
 }
 
 } catch(e) {
