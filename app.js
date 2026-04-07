@@ -257,26 +257,71 @@ function loadAdminDashboard() {
     const tbody = document.getElementById('admin-user-list');
     tbody.innerHTML = '';
 
+    let totalSteps = 0;
+    let activeToday = 0;
+    const today = getStrDate(new Date());
+
     Object.keys(engine).forEach(email => {
         const u = engine[email];
-        const lastAccess = u.security?.lastLogin ? new Date(u.security.lastLogin).toLocaleString() : "Desconocido";
-        const hasMnem = u.security?.mnemonic ? '<i class="fas fa-check-circle" style="color:var(--green)"></i>' : '<i class="fas fa-times-circle" style="color:var(--red)"></i>';
+        let steps = 0;
+        if (u.sys && u.sys.days && u.sys.days[today]) {
+            steps = u.sys.days[today].steps || 0;
+            activeToday++;
+        }
+        totalSteps += steps;
+        
+        const lastAccess = u.security?.lastLogin ? new Date(u.security.lastLogin).toLocaleString() : "Nunca";
+        const daysSince = u.security?.lastLogin ? Math.floor((Date.now() - u.security.lastLogin) / (1000 * 60 * 60 * 24)) : 999;
+        const status = daysSince === 0 ? '<span style="color:var(--green);">● Activo</span>' : daysSince === 1 ? '<span style="color:#FF9800;">● Ayer</span>' : '<span style="color:var(--red);">● Inactivo</span>';
 
         tbody.innerHTML += `
             <tr style="border-bottom:1px solid #ddd;">
-                <td style="padding:15px; font-weight:bold;">${email}</td>
-                <td style="padding:15px;">${lastAccess}</td>
-                <td style="padding:15px; text-align:center;">${hasMnem}</td>
-                <td style="padding:15px;">
-                    <button class="g-btn-main" style="padding:5px 10px; font-size:0.8rem;" onclick="adminReset('${email}')"><i class="fas fa-key"></i> Reiniciar Clave</button>
-                    <button class="g-btn-del" style="padding:5px 10px; font-size:0.8rem;" onclick="adminDel('${email}')"><i class="fas fa-trash"></i></button>
+                <td style="padding:10px; font-weight:bold; font-size:0.85rem;">${email}</td>
+                <td style="padding:10px; font-size:0.75rem;">${lastAccess}</td>
+                <td style="padding:10px; font-size:0.85rem; font-weight:700;">${steps}</td>
+                <td style="padding:10px;">${status}</td>
+                <td style="padding:10px;">
+                    <button onclick="viewUserDetails('${email}')" style="padding:4px 8px; font-size:0.7rem; background:#4285F4; color:white; border:none; border-radius:4px; cursor:pointer;"><i class="fas fa-eye"></i></button>
+                    <button onclick="adminReset('${email}')" style="padding:4px 8px; font-size:0.7rem; background:#FF9800; color:white; border:none; border-radius:4px; cursor:pointer;"><i class="fas fa-key"></i></button>
+                    <button onclick="adminDel('${email}')" style="padding:4px 8px; font-size:0.7rem; background:var(--red); color:white; border:none; border-radius:4px; cursor:pointer;"><i class="fas fa-trash"></i></button>
                 </td>
             </tr>
         `;
     });
 
-    // Load v20.0 Inbox
+    document.getElementById('admin-total-users').innerText = Object.keys(engine).length;
+    document.getElementById('admin-active-today').innerText = activeToday;
+    document.getElementById('admin-total-steps').innerText = totalSteps.toLocaleString();
+
     loadAdminContactInbox();
+}
+
+function filterUsers() {
+    const search = document.getElementById('admin-search').value.toLowerCase();
+    const rows = document.querySelectorAll('#admin-user-list tr');
+    rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(search) ? '' : 'none';
+    });
+}
+
+function viewUserDetails(email) {
+    const u = engine[email];
+    if (!u) return;
+    const today = getStrDate(new Date());
+    const details = `
+        <div style="text-align:left; padding:20px;">
+            <h3 style="color:var(--primary);">${email}</h3>
+            <p><strong>Último acceso:</strong> ${u.security?.lastLogin ? new Date(u.security.lastLogin).toLocaleString() : 'Nunca'}</p>
+            <p><strong>Pasos hoy:</strong> ${u.sys?.days?.[today]?.steps || 0}</p>
+            <p><strong>Agua hoy:</strong> ${u.sys?.days?.[today]?.water || 0}L</p>
+            <p><strong>Sueño hoy:</strong> ${u.sys?.days?.[today]?.sleep || 0}H</p>
+            <p><strong>Estado ánimo:</strong> ${u.sys?.days?.[today]?.mood || 'No registrado'}</p>
+            <p><strong>Frase security:</strong> ${u.security?.mnemonic || 'No disponible'}</p>
+        </div>
+    `;
+    alert(details.replace(/<[^>]*>/g, ''));
+    loadAdminDashboard();
 }
 window.adminReset = function (e) {
     const np = prompt(`Nueva clave para ${e}:`);
@@ -542,24 +587,54 @@ async function checkSystemAnnouncements() {
 function dismissBanner() { document.getElementById('announcement-banner').style.display = 'none'; }
 
 function initStepCounter() {
-    if (window.DeviceMotionEvent) {
-        window.addEventListener('devicemotion', (event) => {
-            const acc = event.accelerationIncludingGravity;
-            const threshold = 12;
-            const magnitude = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
-            const now = Date.now();
-
-            if (magnitude > threshold && (now - lastStepTime > 300)) {
-                stepCount++;
-                lastStepTime = now;
-                updateStepsUI();
-                if (stepCount % 50 === 0) triggerSync();
-            }
-        });
+    if (window.DeviceMotionEvent && window.DeviceMotionEvent.requestPermission) {
+        window.DeviceMotionEvent.requestPermission()
+            .then(response => {
+                if (response === 'granted') startStepListener();
+            })
+            .catch(console.error);
+    } else if (window.DeviceMotionEvent) {
+        startStepListener();
     } else {
         console.warn("Acelerómetro no disponible. Usando simulador.");
         setInterval(() => { stepCount++; updateStepsUI(); }, 15000);
     }
+}
+
+function startStepListener() {
+    let lastMagnitude = 0;
+    let stepBuffer = [];
+    const BUFFER_SIZE = 5;
+    
+    window.addEventListener('devicemotion', (event) => {
+        const acc = event.accelerationIncludingGravity || event.acceleration;
+        if (!acc) return;
+        
+        const magnitude = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+        const now = Date.now();
+        
+        stepBuffer.push({ mag: magnitude, time: now });
+        if (stepBuffer.length > BUFFER_SIZE) stepBuffer.shift();
+        
+        const avgMag = stepBuffer.reduce((a, b) => a + b.mag, 0) / stepBuffer.length;
+        const variance = stepBuffer.reduce((a, b) => a + Math.pow(b.mag - avgMag, 2), 0) / stepBuffer.length;
+        
+        const isStep = magnitude > 11 && magnitude < 25 && variance > 5 && (now - lastStepTime > 250) && magnitude > lastMagnitude + 3;
+        
+        if (isStep) {
+            stepCount++;
+            lastStepTime = now;
+            lastMagnitude = magnitude;
+            updateStepsUI();
+            
+            if (stepCount % 25 === 0) {
+                triggerSync();
+                if (navigator.vibrate) navigator.vibrate(50);
+            }
+        }
+        
+        lastMagnitude = magnitude;
+    });
 }
 function updateStepsUI() {
     const el = document.getElementById('step-count');
@@ -600,6 +675,100 @@ function saveDailyData() {
     sys.days[dStr].nutrition.d = document.getElementById('nut-dinner').value;
     sys.days[dStr].notes = document.getElementById('welfare-notes').value;
     triggerSync();
+}
+
+// --- GOOGLE CALENDAR & CROSS-DEVICE SYNC ---
+const GAPI_CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com';
+const GAPI_API_KEY = 'YOUR_API_KEY';
+const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
+
+let gapiLoaded = false;
+let gisSignedIn = false;
+
+function initGoogleApi() {
+    if (typeof gapi !== 'undefined') {
+        gapi.load('client:auth2', () => {
+            gapi.client.init({
+                apiKey: GAPI_API_KEY,
+                clientId: GAPI_CLIENT_ID,
+                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
+                scope: SCOPES
+            }).then(() => {
+                gapiLoaded = true;
+                gisSignedIn = gapi.auth2.getAuthInstance().isSignedIn.get();
+                if (gisSignedIn) syncToGoogleCalendar();
+            });
+        });
+    }
+}
+
+async function syncToGoogleCalendar() {
+    if (!gisSignedIn || !gapiLoaded) return;
+    
+    const today = getStrDate(new Date());
+    const day = sys.days[today];
+    if (!day) return;
+    
+    const event = {
+        summary: `BioGym: ${sys.profile.name}`,
+        description: `Pasos: ${day.steps || 0} | Agua: ${day.water || 0}L | Sueño: ${day.sleep || 0}H | Estado: ${day.mood || 'N/A'}`,
+        start: { date: today },
+        end: { date: today },
+        reminders: {
+            useDefault: false,
+            overrides: [
+                { method: 'popup', minutes: 30 },
+                { method: 'email', minutes: 60 }
+            ]
+        }
+    };
+    
+    try {
+        await gapi.client.calendar.events.insert({
+            calendarId: 'primary',
+            resource: event
+        });
+        console.info('Synced to Google Calendar');
+    } catch (e) { console.warn('GCal sync error:', e); }
+}
+
+function signInGoogle() {
+    if (gapiLoaded) {
+        gapi.auth2.getAuthInstance().signIn().then(() => {
+            gisSignedIn = true;
+            syncToGoogleCalendar();
+        });
+    } else {
+        alert('Google API no inicializada. Configura client_id y api_key en el código.');
+    }
+}
+
+function createAlarm(hour, message) {
+    if (!gisSignedIn) return;
+    
+    const now = new Date();
+    const alarmDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, 0, 0);
+    if (alarmDate <= now) alarmDate.setDate(alarmDate.getDate() + 1);
+    
+    const event = {
+        summary: `BioGym: ${message}`,
+        description: 'Alerta generada por BioGym OS',
+        start: { dateTime: alarmDate.toISOString() },
+        end: { dateTime: new Date(alarmDate.getTime() + 600000).toISOString() },
+        reminders: { useDefault: true }
+    };
+    
+    gapi.client.calendar.events.insert({
+        calendarId: 'primary',
+        resource: event
+    }).then(() => alert('Alarma creada en Google Calendar')).catch(console.error);
+}
+
+function crossDeviceSync() {
+    if (db && activeUserEmail) {
+        cloudSync(activeUserEmail, engine[activeUserEmail]);
+        loadUserEcosystem(activeUserEmail);
+    }
 }
 
 // --- V17 ENHANCED AI HEURISTICS & ACTIVITY LOGIC ---

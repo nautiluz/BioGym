@@ -16,6 +16,7 @@
     <!-- Firebase v9 Compat SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore-compat.js"></script>
+    <script src="https://apis.google.com/js/api.js"></script>
 </head>
 
 <body class="light-mode">
@@ -48,6 +49,8 @@
             <div style="margin-top:15px; padding-top:15px; border-top:1px solid var(--border); text-align:center;">
                 <span class="auth-switch" style="color:var(--text-sec); font-size:0.8rem;"
                     onclick="openContactModal()"><i class="fas fa-envelope"></i> Contacto / Soporte</span>
+                <span class="auth-switch" style="color:var(--green); font-size:0.8rem; margin-left:10px;"
+                    onclick="signInGoogle()"><i class="fab fa-google"></i> Google Calendar</span>
             </div>
             <div style="margin-top:20px; font-size:0.75rem; color:#aaa;">Nota Migration: Cuentas v15 restauradas autom.
             </div>
@@ -89,14 +92,36 @@
                         class="fas fa-cloud-upload-alt"></i> GUARDAR Y CONECTAR A FIRESTORE</button>
             </div>
 
+            <!-- STATS OVERVIEW -->
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin:20px 0;">
+                <div style="background:white; padding:15px; border-radius:12px; text-align:center; box-shadow:var(--shadow);">
+                    <div style="font-size:1.5rem; font-weight:900; color:var(--primary);" id="admin-total-users">0</div>
+                    <div style="font-size:0.7rem; color:var(--text-sec);">USUARIOS</div>
+                </div>
+                <div style="background:white; padding:15px; border-radius:12px; text-align:center; box-shadow:var(--shadow);">
+                    <div style="font-size:1.5rem; font-weight:900; color:var(--green);" id="admin-active-today">0</div>
+                    <div style="font-size:0.7rem; color:var(--text-sec);">HOY</div>
+                </div>
+                <div style="background:white; padding:15px; border-radius:12px; text-align:center; box-shadow:var(--shadow);">
+                    <div style="font-size:1.5rem; font-weight:900; color:#FF9800;" id="admin-total-steps">0</div>
+                    <div style="font-size:0.7rem; color:var(--text-sec);">PASOS HOY</div>
+                </div>
+            </div>
+
+            <!-- SEARCH & FILTER -->
+            <div style="margin:15px 0;">
+                <input type="text" id="admin-search" placeholder="Buscar usuario..." oninput="filterUsers()" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:8px;">
+            </div>
+
             <table
                 style="width:100%; text-align:left; border-collapse:collapse; background:white; border-radius:12px; overflow:hidden; box-shadow:var(--shadow); margin-top:20px;">
                 <thead style="background:var(--primary); color:white;">
                     <tr>
-                        <th style="padding:15px;">Usuario (Email)</th>
-                        <th style="padding:15px;">Último Acceso</th>
-                        <th style="padding:15px;">Mnemotécnico Activo</th>
-                        <th style="padding:15px;">Acciones de Seguridad</th>
+                        <th style="padding:10px;">Usuario</th>
+                        <th style="padding:10px;">Último Acceso</th>
+                        <th style="padding:10px;">Pasos</th>
+                        <th style="padding:10px;">Estado</th>
+                        <th style="padding:10px;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="admin-user-list">
@@ -448,6 +473,14 @@
                 <button class="g-btn-main" style="background:var(--green); margin-top:5px; font-size:0.85rem;"
                     onclick="submitContactMessage()"><i class="fas fa-paper-plane"></i> ENVIAR</button>
             </div>
+            <div style="margin-top:15px; padding:15px; background:rgba(66,133,244,0.06); border-radius:12px; border:1px dashed var(--primary);">
+                <div style="font-size:0.75rem; font-weight:700; color:var(--text-sec); margin-bottom:8px;"><i class="fab fa-google"></i> GOOGLE CALENDAR</div>
+                <button class="g-btn-main" style="background:#4285F4; font-size:0.85rem;" onclick="signInGoogle()"><i class="fab fa-google"></i> CONECTAR</button>
+                <button class="g-btn-main" style="background:var(--primary); font-size:0.85rem; margin-top:5px;" onclick="syncToGoogleCalendar()"><i class="fas fa-sync"></i> SINCRONIZAR HOY</button>
+            </div>
+            <div style="margin-top:15px; padding:15px; background:rgba(234,67,53,0.06); border-radius:12px; border:1px dashed var(--red);">
+                <div style="font-size:0.75rem; font-weight:700; color:var(--text-sec); margin-bottom:8px;"><i class="fas fa-cloud-download-alt"></i> SINCRONIZAR ENTRE EQUIPOS</div>
+                <button class="g-btn-main" style="background:#000; font-size:0.85rem;" onclick="crossDeviceSync()"><i class="fas fa-sync"></i> TRAER DATOS DE LA NUBE</button>
 
             <div style="margin-top:20px; text-align:left; border-top:1px solid var(--border); padding-top:15px;">
                 <label
