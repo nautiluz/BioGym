@@ -17,13 +17,8 @@ const BIOGYM_FIREBASE_CONFIG = {
 };
 
 function initFirebase() {
-    if (typeof firebase !== 'undefined') {
-        try {
-            if (!firebase.apps.length) firebase.initializeApp(BIOGYM_FIREBASE_CONFIG);
-            db = firebase.firestore();
-            console.log('Firebase listo');
-        } catch(e) { console.log('Firebase offline'); }
-    }
+    console.log('Firebase skip - modo local');
+    db = null;
 }
 
 async function cloudSync(email, data) {
