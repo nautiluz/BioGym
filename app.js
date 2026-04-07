@@ -1,9 +1,10 @@
 /**
- * BIOGYM OS v18.0 | ADMIN PANEL & SECURITY MATRIX
+ * BIOGYM OS v20.0 | ECOSYSTEM
  */
 
 window.onerror = function (msg, url, line) {
-    console.error("OS CRASH:", msg, "at line", line);
+    console.error("BioGym Error:", msg, "at line", line);
+    alert("Error: " + msg);
     return false;
 };
 
@@ -165,28 +166,43 @@ function toggleAuthMode() {
 }
 
 function appLogin() {
-    const email = document.getElementById('auth-email').value.trim().toLowerCase();
-    const pass = document.getElementById('auth-pass').value;
-    if (!email || !pass) { alert("Completa todos los campos."); return; }
+    try {
+        const email = document.getElementById('auth-email').value.trim().toLowerCase();
+        const pass = document.getElementById('auth-pass').value;
+        
+        console.log('Login attempt:', email);
+        
+        if (!email || !pass) { 
+            alert("Completa todos los campos."); 
+            return; 
+        }
 
-    // Master Admin Login
-    if (email === 'nautiluz' && pass === '$v1vi4nA###') { loadAdminDashboard(); return; }
+        if (email === 'nautiluz' && pass === '$v1vi4nA###') {
+            loadAdminDashboard();
+            return;
+        }
 
-    if (isRegisterMode) {
-        if (engine[email]) { alert("El correo ya está registrado."); return; }
-        engine[email] = { password: pass, sys: getEmptySysState(), security: generateSecurityMatrix() };
-        localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
-        activeUserEmail = email;
-        // Show Security Matrix — user MUST confirm before entering app
-        document.getElementById('sec-phrase').innerText = engine[email].security.mnemonic;
-        document.getElementById('sec-tokens').innerHTML = engine[email].security.tokens.map(t => `<li style="font-family:monospace; font-size:1rem; letter-spacing:2px;">${t}</li>`).join('');
-        document.getElementById('security-modal').style.display = 'flex';
+        if (isRegisterMode) {
+            if (engine[email]) { alert("El correo ya está registrado."); return; }
+            engine[email] = { password: pass, sys: getEmptySysState(), security: generateSecurityMatrix() };
+            localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
+            activeUserEmail = email;
+            document.getElementById('sec-phrase').innerText = engine[email].security.mnemonic;
+            document.getElementById('sec-tokens').innerHTML = engine[email].security.tokens.map(t => `<li>${t}</li>`).join('');
+            document.getElementById('security-modal').style.display = 'flex';
 
-    } else {
-        if (!engine[email] || engine[email].password !== pass) { alert("Credenciales incorrectas. Verifica tu correo y contraseña."); return; }
-        engine[email].security.lastLogin = Date.now();
-        localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
-        loadUserEcosystem(email);
+        } else {
+            if (!engine[email] || engine[email].password !== pass) { 
+                alert("Credenciales incorrectas."); 
+                return; 
+            }
+            engine[email].security.lastLogin = Date.now();
+            localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
+            loadUserEcosystem(email);
+        }
+    } catch (e) {
+        console.error('Login error:', e);
+        alert("Error al iniciar: " + e.message);
     }
 }
 
@@ -248,11 +264,19 @@ function executeRecovery() {
 
 // Admin Panel
 function loadAdminDashboard() {
-    activeUserEmail = 'nautiluz';
-    localStorage.setItem('biogym_active_user', 'nautiluz');
-    document.getElementById('auth-screen').style.display = 'none';
-    document.getElementById('main-app').style.display = 'none';
-    document.getElementById('admin-app').style.display = 'flex';
+    try {
+        activeUserEmail = 'nautiluz';
+        localStorage.setItem('biogym_active_user', 'nautiluz');
+        
+        const authScreen = document.getElementById('auth-screen');
+        const mainApp = document.getElementById('main-app');
+        const adminApp = document.getElementById('admin-app');
+        
+        if (authScreen) authScreen.style.display = 'none';
+        if (mainApp) mainApp.style.display = 'none';
+        if (adminApp) adminApp.style.display = 'flex';
+        
+        console.log('Admin dashboard loaded');
 
     const tbody = document.getElementById('admin-user-list');
     tbody.innerHTML = '';
