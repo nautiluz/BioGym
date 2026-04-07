@@ -17,6 +17,25 @@
     --yellow: #FBBC04;
 }
 
+@media (min-width: 768px) {
+    .app-wrap { max-width: 480px; margin: 0 auto; }
+    body { background: #e5e5e5; }
+    #auth-screen { background: linear-gradient(135deg, #F8F9FA 0%, #E8F0FE 100%); }
+    .tile-card { padding: 20px; }
+    .tile-card:hover { transform: translateY(-2px); transition: 0.2s; }
+}
+
+@media (min-width: 1024px) {
+    .app-wrap { max-width: 420px; border-radius: 20px; margin: 20px auto; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
+    .tile-grid-2 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 380px) {
+    .app-wrap { width: 100%; }
+    .action-grid { grid-template-columns: repeat(2, 1fr); }
+    .tile-grid-2 { grid-template-columns: 1fr; }
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
