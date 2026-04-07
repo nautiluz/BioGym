@@ -823,14 +823,35 @@ function uploadProgressPhoto() {
     const file = document.getElementById('progress-photo-upload').files[0];
     if (!file) return;
     
+    if (file.size > 2 * 1024 * 1024) {
+        alert('Foto muy grande. Máximo 2MB. Comprime la imagen primero.');
+        return;
+    }
+
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = async function(e) {
         sys.progressPhotos = sys.progressPhotos || [];
-        sys.progressPhotos.push({ image: e.target.result, date: getStrDate(new Date()) });
+        const photoData = { 
+            image: e.target.result.substring(0, 500000), 
+            date: getStrDate(new Date()),
+            ts: Date.now()
+        };
+        sys.progressPhotos.push(photoData);
         if (sys.progressPhotos.length > 10) sys.progressPhotos.shift();
         
         renderProgressPhotos();
         triggerSync();
+        
+        if (db && activeUserEmail) {
+            try {
+                await db.collection('biogym_progress_photos').doc(activeUserEmail + '_' + photoData.ts).set(photoData);
+                alert('📸 Foto guardada en dispositivo y nube');
+            } catch (e) {
+                alert('📸 Foto guardada localmente (sin conexión a nube)');
+            }
+        } else {
+            alert('📸 Foto guardada en el dispositivo');
+        }
     };
     reader.readAsDataURL(file);
 }
@@ -878,58 +899,79 @@ function saveDailyData() {
 }
 
 // --- GOOGLE CALENDAR & CROSS-DEVICE SYNC ---
-const GAPI_CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com';
-const GAPI_API_KEY = 'YOUR_API_KEY';
+// ⚠️ REEMPLAZA ESTAS CLAVES CON LAS TUYAS DE GOOGLE CLOUD CONSOLE
+const GAPI_CLIENT_ID = '1004539429486-pd2qfg0jj3jil57ehkogh95dbllg3qh4.apps.googleusercontent.com';
+const GAPI_API_KEY = 'AQUI_TU_API_KEY';  // <-- Pon aquí tu API Key de Google Cloud Console
 const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
+
+let gapiLoaded = false;
+let gisSignedIn = false;
 
 let gapiLoaded = false;
 let gisSignedIn = false;
 
 function initGoogleApi() {
     if (typeof gapi !== 'undefined') {
-        gapi.load('client:auth2', () => {
-            gapi.client.init({
-                apiKey: GAPI_API_KEY,
-                clientId: GAPI_CLIENT_ID,
-                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
-                scope: SCOPES
-            }).then(() => {
+        gapi.load('client:auth2', async () => {
+            try {
+                await gapi.client.init({
+                    apiKey: GAPI_API_KEY,
+                    clientId: GAPI_CLIENT_ID,
+                    discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
+                    scope: SCOPES
+                });
                 gapiLoaded = true;
-                gisSignedIn = gapi.auth2.getAuthInstance().isSignedIn.get();
-                if (gisSignedIn) syncToGoogleCalendar();
-            });
+                
+                const auth = gapi.auth2.getAuthInstance();
+                auth.isSignedIn.listen(() => {
+                    gisSignedIn = auth.isSignedIn.get();
+                    if (gisSignedIn) {
+                        console.info('Google signed in');
+                        document.getElementById('sync-label').innerHTML = '<i class="fab fa-google"></i> Google';
+                    }
+                });
+                gisSignedIn = auth.isSignedIn.get();
+            } catch (e) {
+                console.warn('GAPI init error:', e);
+            }
         });
     }
 }
 
 async function syncToGoogleCalendar() {
-    if (!gisSignedIn || !gapiLoaded) return;
+    if (!gisSignedIn || !gapiLoaded || !db) {
+        alert('Conecta con Google primero. Ve al panel de perfil.');
+        return;
+    }
     
     const today = getStrDate(new Date());
     const day = sys.days[today];
     if (!day) return;
     
     const event = {
-        summary: `BioGym: ${sys.profile.name}`,
-        description: `Pasos: ${day.steps || 0} | Agua: ${day.water || 0}L | Sueño: ${day.sleep || 0}H | Estado: ${day.mood || 'N/A'}`,
-        start: { date: today },
-        end: { date: today },
+        summary: `🏋️ BioGym: ${sys.profile.name}`,
+        description: `Pasos: ${day.steps || 0} | Agua: ${day.water || 0}L | Sueño: ${day.sleep || 0}H (${sys.restfulSleep || 5}/10) | Estado: ${day.mood || 'N/A'}\n\nPeso: ${sys.profile.weight || '--'}kg | Cal: ${sys.nutrition?.calories || 0}`,
+        start: { dateTime: new Date().toISOString() },
+        end: { dateTime: new Date().toISOString() },
         reminders: {
             useDefault: false,
             overrides: [
-                { method: 'popup', minutes: 30 },
-                { method: 'email', minutes: 60 }
+                { method: 'popup', minutes: 30 }
             ]
         }
     };
     
     try {
-        await gapi.client.calendar.events.insert({
+        const response = await gapi.client.calendar.events.insert({
             calendarId: 'primary',
             resource: event
         });
         console.info('Synced to Google Calendar');
-    } catch (e) { console.warn('GCal sync error:', e); }
+        alert('✅ Sincronizado con Google Calendar');
+    } catch (e) { 
+        console.warn('GCal sync error:', e);
+        alert('Error al sincronizar. Revisa la consola.');
+    }
 }
 
 function signInGoogle() {
@@ -1295,30 +1337,52 @@ function renderMapForActiveDay() {
     }
 }
 function startGPSListener() {
-    // v20.0: Forced always-on as requested
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+        console.warn("Geolocation no disponible");
+        document.getElementById('current-zone').innerText = "GPS no disponible";
+        return;
+    }
+
+    if (sys.profile.gps === false) return;
+
+    navigator.geolocation.getCurrentPosition(pos => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        lastKnownPos = [lat, lon];
+    }, err => {
+        console.warn("GPS error:", err);
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+
     navigator.geolocation.watchPosition(pos => {
-        const lat = pos.coords.latitude; const lon = pos.coords.longitude;
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
         const speed = (pos.coords.speed * 3.6) || 0;
         lastKnownPos = [lat, lon];
 
-        const gm = document.getElementById('gps-mode'); const gs = document.getElementById('gps-speed');
+        const gm = document.getElementById('gps-mode');
+        const gs = document.getElementById('gps-speed');
         if (gm) gm.innerText = speed > 8 ? "VEHÍCULO" : (speed > 1 ? "CAMINANDO" : "ESTÁTICO");
         if (gs) gs.innerText = `${speed.toFixed(1)} km/h`;
 
-        const tKey = getStrDate(new Date()); ensureDayExists(tKey);
+        const tKey = getStrDate(new Date());
+        ensureDayExists(tKey);
+        
+        if (!sys.days[tKey].route) sys.days[tKey].route = [];
         sys.days[tKey].route.push([lat, lon]);
+
+        if (sys.days[tKey].route.length > 500) sys.days[tKey].route = sys.days[tKey].route.slice(-500);
 
         if (tKey === getStrDate(activeDate)) {
             renderMapForActiveDay();
             if (phantomMap) phantomMap.setView([lat, lon], 16);
         }
 
-        // Location Mood Logic
         handleLocationMoodUpdate(lat, lon);
-
-        triggerSync();
-    }, null, { enableHighAccuracy: true });
+        
+        if (stepCount % 100 === 0) triggerSync();
+    }, err => {
+        console.warn("GPS watch error:", err);
+    }, { enableHighAccuracy: true, timeout: 30000, maximumAge: 10000 });
 }
 
 async function handleLocationMoodUpdate(lat, lon) {
