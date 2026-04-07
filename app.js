@@ -426,6 +426,13 @@ function getEmptySysState() {
             { id: 'h2', name: 'Lectura', icon: 'book' },
             { id: 'h3', name: 'Entrenamiento', icon: 'running' }
         ],
+        weightHistory: [],
+        bodyMeasurements: [],
+        nutrition: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+        exercises: [],
+        restfulSleep: 5,
+        dreams: '',
+        progressPhotos: [],
         days: {}
     };
 }
@@ -664,8 +671,201 @@ function updateWater(d) {
 function updateSleep(d) {
     const dStr = getStrDate(activeDate);
     sys.days[dStr].sleep = Math.max(0, (sys.days[dStr].sleep || 0) + d);
+    sys.restfulSleep = Math.min(10, Math.max(1, sys.days[dStr].restfulSleep || 5));
     logEvent(`Sueño ajustado: ${sys.days[dStr].sleep}H`);
     renderDayView(); triggerSync();
+}
+
+// --- PESO Y NUTRICION ---
+function saveWeight() {
+    const w = parseFloat(document.getElementById('weight-input').value);
+    if (!w || w <= 0) return;
+    
+    sys.profile.weight = w;
+    const entry = { date: getStrDate(new Date()), weight: w };
+    sys.weightHistory = sys.weightHistory || [];
+    sys.weightHistory.push(entry);
+    if (sys.weightHistory.length > 90) sys.weightHistory.shift();
+    
+    calcBMI();
+    renderWeightChart();
+    triggerSync();
+}
+
+function renderWeightChart() {
+    if (typeof Chart === 'undefined' || !document.getElementById('weight-chart')) return;
+    
+    const ctx = document.getElementById('weight-chart');
+    const history = (sys.weightHistory || []).slice(-30);
+    
+    if (window.weightChartInstance) window.weightChartInstance.destroy();
+    
+    window.weightChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: history.map(h => h.date.substring(5)),
+            datasets: [{
+                label: 'Peso (kg)',
+                data: history.map(h => h.weight),
+                borderColor: '#4285F4',
+                backgroundColor: 'rgba(66,133,244,0.1)',
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: false } } }
+    });
+}
+
+function saveMacros() {
+    const cal = parseInt(document.getElementById('cal-input').value) || 0;
+    const p = parseInt(document.getElementById('prot-input').value) || 0;
+    const c = parseInt(document.getElementById('carb-input').value) || 0;
+    const f = parseInt(document.getElementById('fat-input').value) || 0;
+    
+    sys.nutrition = { calories: cal, protein: p, carbs: c, fat: f };
+    const dStr = getStrDate(activeDate);
+    if (!sys.days[dStr]) sys.days[dStr] = {};
+    sys.days[dStr].nutrition = { ...sys.days[dStr].nutrition, ...sys.nutrition };
+    
+    triggerSync();
+}
+
+// --- EJERCICIOS ---
+const EXERCISE_ROUTINES = [
+    { name: 'Cardio Ligero', type: 'cardio', duration: 20, icon: 'heart', cals: 150 },
+    { name: 'HIIT', type: 'hiit', duration: 30, icon: 'fire', cals: 300 },
+    { name: 'Fuerza Upper', type: 'strength', duration: 45, icon: 'dumbbell', cals: 200 },
+    { name: 'Fuerza Lower', type: 'strength', duration: 45, icon: 'dumbbell', cals: 250 },
+    { name: 'Yoga', type: 'flex', duration: 60, icon: 'spa', cals: 100 },
+    { name: 'Correr', type: 'cardio', duration: 30, icon: 'running', cals: 280 },
+    { name: 'Natación', type: 'cardio', duration: 45, icon: 'swimmer', cals: 350 },
+    { name: 'Ciclismo', type: 'cardio', duration: 60, icon: 'biking', cals: 400 }
+];
+
+function openExerciseModal() {
+    const list = document.getElementById('exercise-list');
+    list.innerHTML = '';
+    
+    EXERCISE_ROUTINES.forEach(ex => {
+        const btn = document.createElement('button');
+        btn.className = 'exercise-btn';
+        btn.innerHTML = `<i class="fas fa-${ex.icon}"></i><span>${ex.name}</span><small>${ex.duration}min</small>`;
+        btn.onclick = () => logExercise(ex);
+        list.appendChild(btn);
+    });
+}
+
+function logExercise(ex) {
+    const entry = { ...ex, date: getStrDate(new Date()), ts: Date.now() };
+    sys.exercises = sys.exercises || [];
+    sys.exercises.push(entry);
+    if (sys.exercises.length > 50) sys.exercises.shift();
+    
+    logEvent(`Ejercicio: ${ex.name} - ${ex.cals} cal`);
+    triggerSync();
+    alert(`${ex.name} registrado! Quemaste ~${ex.cals} kcal`);
+}
+
+function renderExercises() {
+    const list = document.getElementById('exercise-list');
+    if (!list) return;
+    list.innerHTML = '';
+    
+    const today = getStrDate(new Date());
+    const todayEx = (sys.exercises || []).filter(e => e.date === today);
+    
+    todayEx.forEach(ex => {
+        list.innerHTML += `<div class="exercise-done"><i class="fas fa-${ex.icon}"></i> ${ex.name} (${ex.cals} kcal)</div>`;
+    });
+    
+    EXERCISE_ROUTINES.forEach(ex => {
+        const btn = document.createElement('button');
+        btn.className = 'exercise-btn';
+        btn.innerHTML = `<i class="fas fa-${ex.icon}"></i><span>${ex.name}</span><small>${ex.duration}min</small>`;
+        btn.onclick = () => logExercise(ex);
+        list.appendChild(btn);
+    });
+}
+
+// --- MEDICIONES CORPORALES ---
+function saveMeasure(type) {
+    const val = parseFloat(document.getElementById(`${type}-input`).value);
+    if (!val || val <= 0) return;
+    
+    sys.bodyMeasurements = sys.bodyMeasurements || [];
+    sys.bodyMeasurements.push({ type, value: val, date: getStrDate(new Date()) });
+    if (sys.bodyMeasurements.length > 50) sys.bodyMeasurements.shift();
+    
+    triggerSync();
+}
+
+function showMeasureHistory() {
+    const measures = sys.bodyMeasurements || [];
+    if (!measures.length) return alert('Sin mediciones guardadas');
+    
+    const grouped = {};
+    measures.forEach(m => {
+        if (!grouped[m.type]) grouped[m.type] = [];
+        grouped[m.type].push(m);
+    });
+    
+    let msg = 'HISTORIAL MEDICIONES:\n\n';
+    Object.keys(grouped).forEach(type => {
+        const latest = grouped[type][grouped[type].length - 1];
+        msg += `${type.toUpperCase()}: ${latest.value}cm (${latest.date})\n`;
+    });
+    alert(msg);
+}
+
+// --- FOTOS PROGRESO ---
+function uploadProgressPhoto() {
+    const file = document.getElementById('progress-photo-upload').files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        sys.progressPhotos = sys.progressPhotos || [];
+        sys.progressPhotos.push({ image: e.target.result, date: getStrDate(new Date()) });
+        if (sys.progressPhotos.length > 10) sys.progressPhotos.shift();
+        
+        renderProgressPhotos();
+        triggerSync();
+    };
+    reader.readAsDataURL(file);
+}
+
+function renderProgressPhotos() {
+    const grid = document.getElementById('progress-photos');
+    if (!grid) return;
+    grid.innerHTML = '';
+    
+    const photos = (sys.progressPhotos || []).slice(-6).reverse();
+    photos.forEach(p => {
+        const img = document.createElement('img');
+        img.src = p.image;
+        img.className = 'progress-thumb';
+        img.title = p.date;
+        grid.appendChild(img);
+    });
+}
+
+// --- CALIDAD DE SUEÑO ---
+function saveSleepQuality(val) {
+    sys.restfulSleep = val;
+    const dStr = getStrDate(activeDate);
+    if (!sys.days[dStr]) sys.days[dStr] = {};
+    sys.days[dStr].restfulSleep = val;
+    logEvent(`Calidad sueño: ${val}/10`);
+    triggerSync();
+}
+
+function saveDream() {
+    const d = document.getElementById('dream-input')?.value;
+    if (d) {
+        sys.dreams = d;
+        triggerSync();
+    }
 }
 
 function saveDailyData() {
@@ -1193,24 +1393,33 @@ function startNotificationEngine() {
 
         let msg = "";
         let title = "BioGym Recomendación";
+        const today = getStrDate(new Date());
+        const day = sys.days[today] || {};
 
-        if (h === 8 && !sys.days[getStrDate(new Date())].habitsDone.length) {
+        if (h === 8 && (!day.habitsDone || !day.habitsDone.length)) {
             msg = "Comienza tu día hidratándote y marcando tu primer hábito para activar neuroplasticidad.";
+        } else if (h === 10 && (!day.water || day.water < 1)) {
+            msg = "💧 Hidratación: Has tomado solo " + (day.water || 0) + "L. Bebe al menos 0.5L ahora.";
         } else if (h === 13) {
             msg = "Tu digestión necesita proceso. Intenta hacer una caminata breve después del almuerzo.";
+        } else if (h === 15 && sys.profile.weight && day.water < (sys.profile.weight * 0.033)) {
+            const target = (sys.profile.weight * 0.033).toFixed(1);
+            msg = `💧 Meta hidratación: ${target}L hoy. Van ${(day.water || 0).toFixed(1)}L`;
         } else if (h === 18 && sys.profile.activity === 'sedentary') {
             msg = "Has estado mucho en oficina. ¡Es tu hora crucial para movilidad física y separar la tensión!";
         } else if (h === 21) {
             msg = "Prepara tu descanso. Evita pantallas brillantes para bajar el cortisol.";
+        } else if (h === 22 && sys.restfulSleep && sys.restfulSleep < 6) {
+            msg = "😴 Calidad sueño: " + sys.restfulSleep + "/10. Descansa temprano para recuperar.";
         }
 
         if (msg) {
             lastNotifiedHour = h;
-            if (Notification.permission === "granted") {
+            if (Notification.permission === 'granted') {
                 new Notification(title, { body: msg, icon: 'https://cdn-icons-png.flaticon.com/512/3208/3208759.png' });
             } else {
                 const dashTip = document.getElementById('ai-health-tip');
-                if (dashTip) dashTip.innerText = "ALERTA TEMPORAL: " + msg;
+                if (dashTip) dashTip.innerText = "ALERTA: " + msg;
             }
         }
     }, 60000);
