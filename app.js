@@ -308,3 +308,40 @@ function toggleMode() {
     document.getElementById('btn-login-action').innerText = isRegisterMode ? 'CREAR CUENTA' : 'ENTRAR';
     document.querySelector('.auth-switch').innerText = isRegisterMode ? 'Ya tengo cuenta' : 'Crear Cuenta';
 }
+
+// === FUNCIONES DEL PERFIL ===
+function openProfilePanel() {
+    var profile = engine[activeUserEmail].profile || {};
+    document.getElementById('user-name-input').value = profile.name || '';
+    document.getElementById('user-height').value = profile.height || '';
+    document.getElementById('user-weight').value = profile.weight || '';
+    document.getElementById('profile-modal').style.display = 'flex';
+}
+
+function updateProfile() {
+    var name = document.getElementById('user-name-input').value;
+    var height = document.getElementById('user-height').value;
+    var weight = document.getElementById('user-weight').value;
+    
+    engine[activeUserEmail].profile = {
+        name: name,
+        height: height,
+        weight: weight
+    };
+    
+    saveEngine();
+    renderDashboard();
+    closeModal();
+    alert('Perfil actualizado!');
+}
+
+function closeModal() {
+    var modals = document.querySelectorAll('.modal');
+    modals.forEach(function(m) { m.style.display = 'none'; });
+}
+
+function changeDay(delta) {
+    var fecha = getToday();
+    // Por ahora solo muestra hoy
+    renderDashboard();
+}
