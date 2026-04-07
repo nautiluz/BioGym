@@ -166,43 +166,42 @@ function toggleAuthMode() {
 }
 
 function appLogin() {
-    try {
-        const email = document.getElementById('auth-email').value.trim().toLowerCase();
-        const pass = document.getElementById('auth-pass').value;
-        
-        console.log('Login attempt:', email);
-        
-        if (!email || !pass) { 
-            alert("Completa todos los campos."); 
+    const emailInput = document.getElementById('auth-email');
+    const passInput = document.getElementById('auth-pass');
+    
+    if (!emailInput || !passInput) {
+        alert("Error: No se encontraron los campos de entrada.");
+        return;
+    }
+    
+    const email = emailInput.value.trim().toLowerCase();
+    const pass = passInput.value;
+    
+    console.log("Intentando login con:", email);
+    alert("Login: " + email);
+    
+    if (email === 'nautiluz' && pass === '$v1vi4nA###') {
+        alert("Accediendo como admin...");
+        loadAdminDashboard();
+        return;
+    }
+
+    if (isRegisterMode) {
+        if (engine[email]) { alert("El correo ya está registrado."); return; }
+        engine[email] = { password: pass, sys: getEmptySysState(), security: generateSecurityMatrix() };
+        localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
+        activeUserEmail = email;
+        document.getElementById('sec-phrase').innerText = engine[email].security.mnemonic;
+        document.getElementById('sec-tokens').innerText = engine[email].security.tokens.join(', ');
+        document.getElementById('security-modal').style.display = 'flex';
+    } else {
+        if (!engine[email] || engine[email].password !== pass) { 
+            alert("Credenciales incorrectas. Crea una cuenta primero."); 
             return; 
         }
-
-        if (email === 'nautiluz' && pass === '$v1vi4nA###') {
-            loadAdminDashboard();
-            return;
-        }
-
-        if (isRegisterMode) {
-            if (engine[email]) { alert("El correo ya está registrado."); return; }
-            engine[email] = { password: pass, sys: getEmptySysState(), security: generateSecurityMatrix() };
-            localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
-            activeUserEmail = email;
-            document.getElementById('sec-phrase').innerText = engine[email].security.mnemonic;
-            document.getElementById('sec-tokens').innerHTML = engine[email].security.tokens.map(t => `<li>${t}</li>`).join('');
-            document.getElementById('security-modal').style.display = 'flex';
-
-        } else {
-            if (!engine[email] || engine[email].password !== pass) { 
-                alert("Credenciales incorrectas."); 
-                return; 
-            }
-            engine[email].security.lastLogin = Date.now();
-            localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
-            loadUserEcosystem(email);
-        }
-    } catch (e) {
-        console.error('Login error:', e);
-        alert("Error al iniciar: " + e.message);
+        engine[email].security.lastLogin = Date.now();
+        localStorage.setItem('biogym_users_v18', JSON.stringify(engine));
+        loadUserEcosystem(email);
     }
 }
 
